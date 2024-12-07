@@ -24,8 +24,8 @@ Rewards System Program is a decentralized application built on the Solana blockc
 1. Clone the repository (ensure you have access):
 
    ```bash
-   git clone https://github.com/yourusername/nfnode-rewards.git
-   cd nfnode-rewards
+   git clone https://github.com/Wayru-Network/rewards-system-program.git
+   cd rewards-system-program
    ```
 
 2. Build the project:
