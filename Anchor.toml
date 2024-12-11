@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-nfnode_rewards = "3bJrkegLA6EmU5gmoXNHwnSiVoVbZVkqSsaa7dfV6e2e"
+reward_system = "4E4oAH7z8bFYrzhovCqq9VgMgqAW9oJ6jHfmMS2Kiork"
 
 [registry]
 url = "https://api.apr.dev"
