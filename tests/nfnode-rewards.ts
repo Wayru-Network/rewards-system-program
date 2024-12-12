@@ -26,7 +26,7 @@ async function airdropSolIfNeeded(
     console.log("Airdropping 1 SOL...")
     const airdropSignature = await connection.requestAirdrop(
       signer.publicKey,
-      10*LAMPORTS_PER_SOL
+      10 * LAMPORTS_PER_SOL
     )
 
     const latestBlockHash = await connection.getLatestBlockhash()
@@ -35,7 +35,7 @@ async function airdropSolIfNeeded(
       blockhash: latestBlockHash.blockhash,
       lastValidBlockHeight: latestBlockHash.lastValidBlockHeight,
       signature: airdropSignature,
-    },'finalized')
+    }, 'finalized')
 
     const newBalance = await connection.getBalance(signer.publicKey)
     console.log("New balance is", newBalance / LAMPORTS_PER_SOL)
@@ -153,7 +153,7 @@ describe("nfnode-rewards", async () => {
       .fundTokenStorage(new anchor.BN(500000000)) // 500 tokens
       .accounts({
         user: adminKeypair.publicKey,
-        userTokenAccount: adminTokenAccount
+        tokenMint: mint,
       })
       .signers([adminKeypair])
       .rpc();
@@ -192,12 +192,12 @@ describe("nfnode-rewards", async () => {
       .claimRewards(
         new anchor.BN(rewardAmount),
         Array.from(signature),
-        Array.from(userKeypair.publicKey.toBytes()),
+        userKeypair.publicKey,
         new anchor.BN(nonce)
       )
       .accounts({
         user: userKeypair.publicKey,
-        userTokenAccount: userTokenAccount,
+        tokenMint: mint
       })
       .signers([userKeypair])
       .rpc();

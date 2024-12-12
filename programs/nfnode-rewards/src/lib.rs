@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
 
-declare_id!("BYvzepM135ZJ1gBGeMAsV4vetf5w74CupqLFDiWEN8pm");
+declare_id!("5AHDKjJTaSoMUaM6zZDRp5Hdyc3pxJa8fGTUAntimrRV");
 
 #[program]
 pub mod reward_system {
@@ -91,7 +91,8 @@ pub struct FundTokenStorage<'info> {
     #[account(mut, seeds = [b"token_storage"], bump)]
     pub token_storage_authority: AccountInfo<'info>,
     #[account(
-        mut,
+        init_if_needed,
+        payer = user,
         associated_token::mint = token_mint,
         associated_token::authority = token_storage_authority,
     )]
@@ -130,7 +131,8 @@ pub struct ClaimRewards<'info> {
     )]
     pub token_storage_account: Account<'info, TokenAccount>,
     #[account(
-        mut,
+        init_if_needed,
+        payer = user,
         associated_token::mint = token_mint,
         associated_token::authority = user,
     )]
