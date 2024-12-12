@@ -2,9 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, Token, Transfer };
 use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
 
-declare_id!("4E4oAH7z8bFYrzhovCqq9VgMgqAW9oJ6jHfmMS2Kiork");
-
-const MANUFACTURER_SHARE: u8 = 1; // Always 1%
+declare_id!("3mirb7pk2BEMJCrJqcLwPeSsWyV85SKuYKDD6jgZaCmc");
 
 #[program]
 pub mod reward_system {
@@ -13,13 +11,26 @@ pub mod reward_system {
     pub fn claim_rewards(
         ctx: Context<ClaimRewards>,
         reward_amount: u64,
-        owner_share: u8,
-        host_share: u8,
-        admin_pubkey: [u8; 32],
         admin_signature: [u8; 64],
+        claimer_pubkey: [u8; 32],
         nonce: u64
     ) -> Result<()> {
-        let reward_entry_key = ctx.accounts.reward_entry.key();
+        if ctx.accounts.reward_entry.claimed_nonces.is_empty() {
+            // Initialize the reward_entry PDA
+            let (reward_entry_key, _bump) = Pubkey::find_program_address(
+                &[b"reward_entry", ctx.accounts.user.key().as_ref()],
+                ctx.program_id
+            );
+
+            // Ensure that the reward_entry account is the expected PDA
+            require!(
+                ctx.accounts.reward_entry.key() == reward_entry_key,
+                RewardError::InvalidAccount
+            );
+
+            let reward_entry = &mut ctx.accounts.reward_entry;
+            reward_entry.claimed_nonces = vec![]; // Initialize the nonces vector
+        }
 
         // Check if the reward has already been claimed using the nonce
         require!(
@@ -28,32 +39,24 @@ pub mod reward_system {
         );
 
         // Generate the message to verify
-        let message = generate_reward_message(
-            reward_entry_key,
-            reward_amount,
-            owner_share,
-            host_share,
-            nonce
-        );
-
+        let message = generate_reward_message(reward_amount, claimer_pubkey.into(), nonce);
+        let admin_pubkey = ctx.accounts.admin_account.admin_pubkey;
         // Verify admin signature using Ed25519 program
         verify_ed25519_signature(&admin_pubkey, &admin_signature, &message)?;
 
-        // Calculate amounts
-        let (owner_amount, host_amount, manufacturer_amount) = calculate_amounts(
-            reward_amount,
-            owner_share,
-            host_share
-        );
+        // Transfer
 
-        // Transfers
-        token::transfer(ctx.accounts.transfer_to_owner(), owner_amount)?;
-        token::transfer(ctx.accounts.transfer_to_host(), host_amount)?;
-        token::transfer(ctx.accounts.transfer_to_manufacturer(), manufacturer_amount)?;
+        let user_key_base58 = ctx.accounts.user.key().to_string();
+        let claimer_key_base58 = Pubkey::from(claimer_pubkey).to_string();
 
+        if user_key_base58 == claimer_key_base58 {
+            // Perform the transfer
+            token::transfer(ctx.accounts.transfer_to_user(), reward_amount)?;
+        } else {
+            return Err(RewardError::Unauthorized.into());
+        }
         // Register the nonce as claimed
         ctx.accounts.reward_entry.claimed_nonces.push(nonce);
-
         Ok(())
     }
 
@@ -79,61 +82,34 @@ pub mod reward_system {
         // Initialize the admin account
         let admin_account = &mut ctx.accounts.admin_account;
         admin_account.admin_pubkey = ctx.accounts.user.key().to_bytes();
-        // Initialize the reward_entry PDA
-        let (reward_entry_key, _bump) = Pubkey::find_program_address(
-            &[b"reward_entry", ctx.accounts.user.key().as_ref()],
-            ctx.program_id
-        );
 
-        // Ensure that the reward_entry account is the expected PDA
-        require!(ctx.accounts.reward_entry.key() == reward_entry_key, RewardError::InvalidAccount);
-
-        let reward_entry = &mut ctx.accounts.reward_entry;
-        reward_entry.claimed_nonces = vec![]; // Initialize the nonces vector
+        Ok(())
+    }
+    pub fn fund_token_storage(ctx: Context<FundTokenStorage>, amount: u64) -> Result<()> {
+        // Perform the transfer
+        token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
 
         Ok(())
     }
 }
-
+#[derive(Accounts)]
+pub struct FundTokenStorage<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>, // User who funds
+    // PDA that stores tokens
+    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    #[account(mut)]
+    pub token_storage: AccountInfo<'info>,
+    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    #[account(mut)]
+    pub user_token_account: AccountInfo<'info>,
+    // User's token account
+    pub token_program: Program<'info, Token>, // Token program
+}
 #[derive(Accounts)]
 pub struct ClaimRewards<'info> {
     #[account(mut)]
-    pub reward_entry: Account<'info, RewardEntry>,
-    #[account(mut)]
-    pub owner: Signer<'info>,
-    /// CHECK: The host account is used as a transfer destination and does not require additional checks.
-    #[account(mut)]
-    pub host: AccountInfo<'info>,
-    /// CHECK: The manufacturer account is used as a transfer destination and does not require additional checks.
-    #[account(mut)]
-    pub manufacturer: AccountInfo<'info>,
-    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
-    #[account(mut)]
-    pub owner_token_account: AccountInfo<'info>,
-    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
-    #[account(mut)]
-    pub host_token_account: AccountInfo<'info>,
-    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
-    #[account(mut)]
-    pub manufacturer_token_account: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK: Used only for signature validation in the program.
-    pub admin: UncheckedAccount<'info>,
-}
-
-// Context struct for the general initialization
-#[derive(Accounts)]
-pub struct InitializeSystem<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>, // User who is initializing
-    #[account(
-        init,
-        payer = user,
-        space = 40,
-        seeds = [b"admin_account", user.key().as_ref()],
-        bump
-    )] //
-    pub admin_account: Account<'info, AdminAccount>, // Admin account
+    pub user: Signer<'info>, // The user claiming the rewards
     #[account(
         init,
         payer = user,
@@ -142,7 +118,47 @@ pub struct InitializeSystem<'info> {
         bump
     )] // Space for reward_entry
     pub reward_entry: Account<'info, RewardEntry>, // Reward entry PDA
+    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    #[account(
+        mut,
+        seeds = [b"token_storage", user.key().as_ref()],
+        bump
+    )]
+    pub token_storage: AccountInfo<'info>, // PDA that stores tokens
+    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    #[account(mut)]
+    pub user_token_account: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"admin_account"],
+        bump
+    )]
+    pub admin_account: Account<'info, AdminAccount>, // Admin account
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>, // Required for initialization
+}
+
+// Context struct for the general initialization
+#[derive(Accounts)]
+pub struct InitializeSystem<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>, // User who initializes
+    #[account(init, payer = user, space = 40, seeds = [b"admin_account"], bump)]
+    pub admin_account: Account<'info, AdminAccount>, // Admin account
+    /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    #[account(
+        init,
+        payer = user,
+        space = 8 + 64,
+        seeds = [b"token_storage", user.key().as_ref()],
+        bump
+    )]
+    pub token_storage: AccountInfo<'info>, // PDA that stores tokens
+    // /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
+    // #[account(mut)]
+    // pub user_token_account: AccountInfo<'info>, // User's token account
+    pub system_program: Program<'info, System>, // Required for initialization
+    pub token_program: Program<'info, Token>, // Token program
 }
 #[derive(Accounts)]
 pub struct UpdateAdmin<'info> {
@@ -150,7 +166,7 @@ pub struct UpdateAdmin<'info> {
     pub user: Signer<'info>, //
     #[account(
         mut,
-        seeds = [b"admin_account", user.key().as_ref()],
+        seeds = [b"admin_account"],
         bump
     )] //
     pub admin_account: Account<'info, AdminAccount>, // Admin account
@@ -179,18 +195,10 @@ pub enum RewardError {
 }
 
 // Helper function to generate the signature message
-fn generate_reward_message(
-    reward_entry: Pubkey,
-    reward_amount: u64,
-    owner_share: u8,
-    host_share: u8,
-    nonce: u64
-) -> Vec<u8> {
+fn generate_reward_message(reward_amount: u64, claimer_pubkey: Pubkey, nonce: u64) -> Vec<u8> {
     let mut message = vec![];
-    message.extend_from_slice(reward_entry.as_ref());
+    message.extend_from_slice(claimer_pubkey.as_ref());
     message.extend_from_slice(&reward_amount.to_le_bytes());
-    message.push(owner_share);
-    message.push(host_share);
     message.extend_from_slice(&nonce.to_le_bytes());
     message
 }
@@ -236,36 +244,21 @@ fn create_ed25519_instruction_data(signature: &[u8], public_key: &[u8], message:
 
     instruction_data
 }
-
-fn calculate_amounts(reward_amount: u64, owner_share: u8, host_share: u8) -> (u64, u64, u64) {
-    let owner_amount = (reward_amount * (owner_share as u64)) / 100;
-    let host_amount = (reward_amount * (host_share as u64)) / 100;
-    let manufacturer_amount = (reward_amount * (MANUFACTURER_SHARE as u64)) / 100;
-    (owner_amount, host_amount, manufacturer_amount)
-}
-
 impl<'info> ClaimRewards<'info> {
-    fn transfer_to_owner(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+    fn transfer_to_user(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(self.token_program.to_account_info(), Transfer {
-            from: self.owner_token_account.to_account_info(),
-            to: self.owner.to_account_info(),
-            authority: self.owner.to_account_info(),
+            from: self.token_storage.to_account_info(),
+            to: self.user.to_account_info(),
+            authority: self.token_storage.to_account_info(),
         })
     }
-
-    fn transfer_to_host(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+}
+impl<'info> FundTokenStorage<'info> {
+    fn transfer_to_token_storage(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(self.token_program.to_account_info(), Transfer {
-            from: self.host_token_account.to_account_info(),
-            to: self.host.to_account_info(),
-            authority: self.owner.to_account_info(),
-        })
-    }
-
-    fn transfer_to_manufacturer(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(self.token_program.to_account_info(), Transfer {
-            from: self.manufacturer_token_account.to_account_info(),
-            to: self.manufacturer.to_account_info(),
-            authority: self.owner.to_account_info(),
+            from: self.user_token_account.to_account_info(),
+            to: self.token_storage.to_account_info(),
+            authority: self.user_token_account.to_account_info(),
         })
     }
 }

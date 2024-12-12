@@ -34,14 +34,15 @@ async function airdropSolIfNeeded(
 }
 
 
-// Función para generar la PDA
+// Generates PDA Function
 async function generatePDA(seed: string, userPublicKey: PublicKey, programId: PublicKey) {
-  // Define el seed que se usará para generar la PDA
 
-  // Genera la PDA
-  const [rewardEntryPDA, bump] = await PublicKey.findProgramAddress(
-    [Buffer.from(seed), userPublicKey.toBuffer()],
-    programId // Reemplaza con tu program ID
+
+  const seedArray = [Buffer.from(seed)];
+  if (seed === 'reward_emtry') seedArray.push(userPublicKey.toBuffer())
+  const [rewardEntryPDA, bump] = PublicKey.findProgramAddressSync(
+    seedArray,
+    programId 
   );
 
   return { rewardEntryPDA, bump };
@@ -121,20 +122,12 @@ describe("nfnode-rewards", async () => {
     // Front interaction
     const tx = await program.methods.claimRewards(
       new anchor.BN(rewardAmount),
-      ownerShare,
-      hostShare,
-      Array.from(newUserAdminKeypair.publicKey.toBytes()),
       Array.from(signature),
+      Array.from(userKeypair.publicKey.toBytes()),
       new anchor.BN(nonce)
     ).accounts({
-      rewardEntry: rewardEntryKey,
-      admin: userKeypair.publicKey,
-      host: userKeypair.publicKey,
-      owner: userKeypair.publicKey,
-      hostTokenAccount: userKeypair.publicKey,
-      ownerTokenAccount: userKeypair.publicKey,
-      manufacturer: userKeypair.publicKey,
-      manufacturerTokenAccount: userKeypair.publicKey,
+      user: userKeypair.publicKey,
+      userTokenAccount:userKeypair.publicKey
     }).signers([
       userKeypair,
     ]).rpc({ commitment: 'confirmed' });
