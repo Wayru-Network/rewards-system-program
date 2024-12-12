@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
 
-declare_id!("5AHDKjJTaSoMUaM6zZDRp5Hdyc3pxJa8fGTUAntimrRV");
+declare_id!("CUQLdZJSvB9jF15sSRpwFvyKjoRizV39PbbGRd61cxzK");
 
 #[program]
 pub mod reward_system {
