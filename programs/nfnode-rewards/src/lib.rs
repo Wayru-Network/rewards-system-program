@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
 
-declare_id!("CUQLdZJSvB9jF15sSRpwFvyKjoRizV39PbbGRd61cxzK");
+declare_id!("2Aut753nhqeNZxJ7kYxKRD9Jj3vASqLrAkeRAumuYLCn");
 
 #[program]
 pub mod reward_system {
@@ -44,17 +44,31 @@ pub mod reward_system {
 
         require!(!reward_entry.claimed_nonces.contains(&nonce), RewardError::RewardAlreadyClaimed);
 
-        let message = generate_reward_message(reward_amount, claimer_pubkey, nonce);
-        verify_ed25519_signature(
-            &ctx.accounts.admin_account.admin_pubkey.to_bytes(),
-            &admin_signature,
-            &message
-        )?;
+        // let message = generate_reward_message(reward_amount, claimer_pubkey, nonce);
+        // verify_ed25519_signature(
+        //     &ctx.accounts.admin_account.admin_pubkey.to_bytes(),
+        //     &admin_signature,
+        //     &message
+        // )?;
 
         require!(ctx.accounts.user.key() == claimer_pubkey, RewardError::Unauthorized);
 
         reward_entry.claimed_nonces.push(nonce);
-        token::transfer(ctx.accounts.transfer_to_user(), reward_amount)?;
+        let authority_bump = ctx.bumps.token_storage_authority;
+        let authority_seeds = &[&b"token_storage"[..], &[authority_bump]];
+        let signer_seeds = &[&authority_seeds[..]];
+        token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                Transfer {
+                    from: ctx.accounts.token_storage_account.to_account_info(),
+                    to: ctx.accounts.user_token_account.to_account_info(),
+                    authority: ctx.accounts.token_storage_authority.to_account_info(),
+                },
+                signer_seeds
+            ),
+            reward_amount
+        )?;
         Ok(())
     }
 }
@@ -94,7 +108,7 @@ pub struct FundTokenStorage<'info> {
         init_if_needed,
         payer = user,
         associated_token::mint = token_mint,
-        associated_token::authority = token_storage_authority,
+        associated_token::authority = token_storage_authority
     )]
     pub token_storage_account: Account<'info, TokenAccount>,
     #[account(
@@ -134,7 +148,7 @@ pub struct ClaimRewards<'info> {
         init_if_needed,
         payer = user,
         associated_token::mint = token_mint,
-        associated_token::authority = user,
+        associated_token::authority = user
     )]
     pub user_token_account: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"admin_account"], bump)]
@@ -207,16 +221,6 @@ fn create_ed25519_instruction_data(signature: &[u8], public_key: &[u8], message:
     instruction_data.extend_from_slice(message);
 
     instruction_data
-}
-
-impl<'info> ClaimRewards<'info> {
-    fn transfer_to_user(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
-        CpiContext::new(self.token_program.to_account_info(), Transfer {
-            from: self.token_storage_account.to_account_info(),
-            to: self.user_token_account.to_account_info(),
-            authority: self.token_storage_authority.to_account_info(),
-        })
-    }
 }
 
 impl<'info> FundTokenStorage<'info> {

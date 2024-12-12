@@ -197,7 +197,7 @@ describe("nfnode-rewards", async () => {
       )
       .accounts({
         user: userKeypair.publicKey,
-        tokenMint: mint
+        tokenMint: mint,
       })
       .signers([userKeypair])
       .rpc();
