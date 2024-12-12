@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{ self, Token, Transfer };
 use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
 
-declare_id!("3mirb7pk2BEMJCrJqcLwPeSsWyV85SKuYKDD6jgZaCmc");
+declare_id!("6qs2bC7F3VFT9JQ51xdU6TFdokiHkLS1CPNN9FQfgKfq");
 
 #[program]
 pub mod reward_system {
@@ -98,8 +98,12 @@ pub struct FundTokenStorage<'info> {
     pub user: Signer<'info>, // User who funds
     // PDA that stores tokens
     /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
-    #[account(mut)]
-    pub token_storage: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [b"token_storage", user.key().as_ref()],
+        bump
+    )]
+    pub token_storage: AccountInfo<'info>, // PDA that stores tokens
     /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
     #[account(mut)]
     pub user_token_account: AccountInfo<'info>,
