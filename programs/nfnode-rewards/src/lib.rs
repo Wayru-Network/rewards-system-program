@@ -100,7 +100,7 @@ pub struct FundTokenStorage<'info> {
     /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
     #[account(
         mut,
-        seeds = [b"token_storage", user.key().as_ref()],
+        seeds = [b"token_storage"],
         bump
     )]
     pub token_storage: AccountInfo<'info>, // PDA that stores tokens
@@ -125,7 +125,7 @@ pub struct ClaimRewards<'info> {
     /// CHECK: Manual verification is performed in the program to ensure this is a valid TokenAccount.
     #[account(
         mut,
-        seeds = [b"token_storage", user.key().as_ref()],
+        seeds = [b"token_storage"],
         bump
     )]
     pub token_storage: AccountInfo<'info>, // PDA that stores tokens
@@ -154,7 +154,7 @@ pub struct InitializeSystem<'info> {
         init,
         payer = user,
         space = 8 + 64,
-        seeds = [b"token_storage", user.key().as_ref()],
+        seeds = [b"token_storage"],
         bump
     )]
     pub token_storage: AccountInfo<'info>, // PDA that stores tokens
