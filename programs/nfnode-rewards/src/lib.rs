@@ -3,9 +3,9 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{ self, Token, TokenAccount, Transfer, Mint },
 };
-use solana_program::{ ed25519_program, instruction::Instruction, program::invoke };
+use solana_program::{ pubkey::Pubkey };
 
-declare_id!("2Aut753nhqeNZxJ7kYxKRD9Jj3vASqLrAkeRAumuYLCn");
+declare_id!("9uEyFrPdQ3UShZKBNhxduk35Mjvi3CQTFzwxapFZtcaK");
 
 #[program]
 pub mod reward_system {
@@ -32,7 +32,6 @@ pub mod reward_system {
     pub fn claim_rewards(
         ctx: Context<ClaimRewards>,
         reward_amount: u64,
-        admin_signature: [u8; 64],
         claimer_pubkey: Pubkey,
         nonce: u64
     ) -> Result<()> {
@@ -44,14 +43,15 @@ pub mod reward_system {
 
         require!(!reward_entry.claimed_nonces.contains(&nonce), RewardError::RewardAlreadyClaimed);
 
-        // let message = generate_reward_message(reward_amount, claimer_pubkey, nonce);
-        // verify_ed25519_signature(
-        //     &ctx.accounts.admin_account.admin_pubkey.to_bytes(),
-        //     &admin_signature,
-        //     &message
-        // )?;
-
         require!(ctx.accounts.user.key() == claimer_pubkey, RewardError::Unauthorized);
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(
+            ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
+            RewardError::Unauthorized
+        );
+        let user_admin_account_info = ctx.accounts.user_admin.to_account_info();
+        let is_partially_signed_by_admin = user_admin_account_info.is_signer;
+        require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
 
         reward_entry.claimed_nonces.push(nonce);
         let authority_bump = ctx.bumps.token_storage_authority;
@@ -124,6 +124,9 @@ pub struct FundTokenStorage<'info> {
 
 #[derive(Accounts)]
 pub struct ClaimRewards<'info> {
+    /// CHECK:
+    #[account(mut)]
+    pub user_admin: Signer<'info>,
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
@@ -176,51 +179,8 @@ pub enum RewardError {
     InvalidAdminSignature,
     #[msg("Unauthorized access.")]
     Unauthorized,
-}
-
-fn generate_reward_message(reward_amount: u64, claimer_pubkey: Pubkey, nonce: u64) -> Vec<u8> {
-    let mut message = vec![];
-    message.extend_from_slice(claimer_pubkey.as_ref());
-    message.extend_from_slice(&reward_amount.to_le_bytes());
-    message.extend_from_slice(&nonce.to_le_bytes());
-    message
-}
-
-fn verify_ed25519_signature(
-    public_key: &[u8; 32],
-    signature: &[u8; 64],
-    message: &[u8]
-) -> Result<()> {
-    let instruction_data = create_ed25519_instruction_data(signature, public_key, message);
-
-    let instruction = Instruction {
-        program_id: ed25519_program::id(),
-        accounts: vec![],
-        data: instruction_data,
-    };
-
-    invoke(&instruction, &[]).map_err(|_| error!(RewardError::InvalidAdminSignature))
-}
-
-fn create_ed25519_instruction_data(signature: &[u8], public_key: &[u8], message: &[u8]) -> Vec<u8> {
-    let mut instruction_data = vec![];
-
-    let pubkey_offset = 1 + 4 + 64;
-    let message_offset = pubkey_offset + public_key.len();
-
-    instruction_data.push(0);
-    instruction_data.extend_from_slice(&(64_u32).to_le_bytes());
-    instruction_data.extend_from_slice(&(0_u32).to_le_bytes());
-    instruction_data.extend_from_slice(&(32_u32).to_le_bytes());
-    instruction_data.extend_from_slice(&(pubkey_offset as u32).to_le_bytes());
-    instruction_data.extend_from_slice(&(message.len() as u32).to_le_bytes());
-    instruction_data.extend_from_slice(&(message_offset as u32).to_le_bytes());
-
-    instruction_data.extend_from_slice(signature);
-    instruction_data.extend_from_slice(public_key);
-    instruction_data.extend_from_slice(message);
-
-    instruction_data
+    #[msg("Missing admin signature.")]
+    MissingAdminSignature,
 }
 
 impl<'info> FundTokenStorage<'info> {

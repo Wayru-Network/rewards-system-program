@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Rewards System Program</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h1 id="rewards-system-program">Rewards System Program</h1>
+<h2 id="overview">Overview</h2>
+<p>The Rewards System Program is a decentralized application built on the Solana blockchain that allows users to claim rewards based on their contributions. This project utilizes the Anchor framework to simplify the development of Solana programs.</p>
+<p>The program enables administrators to set up a reward system and users to claim those rewards. Transactions are partially signed by an administrator for enhanced security, while the user claiming the reward pays the transaction fees.</p>
+<h2 id="features">Features</h2>
+<ul>
+<li><strong>Reward claiming:</strong> Users can claim rewards based on specified parameters.</li>
+<li><strong>Admin partial signature:</strong> Reward claim transactions require partial signature from an administrator for added security.</li>
+<li><strong>User pays transaction fees:</strong> The user claiming the reward is responsible for paying the transaction fees.</li>
+<li><strong>Secure handling of nonces:</strong> Nonces are used to prevent replay attacks.</li>
+<li><strong>Token transfers:</strong> The program facilitates token transfers to multiple accounts (owner, host, manufacturer).</li>
+</ul>
+<h2 id="getting-started">Getting Started</h2>
+<h3 id="prerequisites">Prerequisites</h3>
+<ul>
+<li>Rust and Cargo installed on your machine.</li>
+<li>Solana CLI installed and configured.</li>
+<li>Anchor framework installed.</li>
+</ul>
+<h3 id="installation">Installation</h3>
+<ol>
+<li>
+<p>Clone the repository (ensure you have access):</p>
+<pre><code class="language-bash">git <span class="hljs-built_in">clone</span> https://github.com/Wayru-Network/rewards-system-program.git
+<span class="hljs-built_in">cd</span> rewards-system-program
+</code></pre>
+</li>
+<li>
+<p>Build the project:</p>
+<pre><code class="language-bash">anchor build
+</code></pre>
+</li>
+<li>
+<p>Deploy the program to the Solana cluster:</p>
+<pre><code class="language-bash">anchor deploy
+</code></pre>
+</li>
+</ol>
+<h3 id="running-tests">Running Tests</h3>
+<p>To run the tests for the program, use the following command:</p>
+<pre><code class="language-bash">anchor <span class="hljs-built_in">test</span>
+</code></pre>
+<p><strong>Note:</strong> To run tests locally, start a local validator with:</p>
+<pre><code class="language-bash">anchor localnet
+</code></pre>
+<p>Or, if you need to reset the validator:</p>
+<pre><code class="language-bash">anchor localnet --reset
+</code></pre>
+<h3 id="interacting-with-the-program">Interacting with the Program</h3>
+<p>You can interact with the program using the provided TypeScript tests. Modify the <code>tests/nfnode-rewards.ts</code> file to set your parameters and run the tests to claim rewards.</p>
+<h3 id="example-usage">Example Usage</h3>
+<p>Here is an example of how to claim rewards, based on the <code>Claim Rewards with admin signature Must Success</code> test:
+typescript
+// In tests/nfnode-rewards.ts
+it(&quot;Claim Rewards with admin signature Must Success&quot;, async () =&gt; {
+// ... (keypair configuration, airdrops, etc.) ...
+// Build the instruction to claim rewards, specifying that the administrator
+// will partially sign this instruction.
+const claimRewardsIx = await program.methods
+.claimRewards(
+new <a href="http://anchor.BN">anchor.BN</a>(rewardAmount), // Reward amount
+userKeypair.publicKey, // User's public key
+new <a href="http://anchor.BN">anchor.BN</a>(nonce) // Nonce
+)
+.accounts({
+user: userKeypair.publicKey, // User claiming
+userAdmin: adminKeypair.publicKey, // Administrator
+tokenMint: mint, // Reward token
+// ... other accounts ...
+})
+.signers([adminKeypair]) // Administrator's partial signature
+.instruction();
+// Create a new transaction and add the instruction.
+let tx = new Transaction();
+tx.add(claimRewardsIx);
+// Get the recent blockhash.
+tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+// Set the feePayer as userKeypair.publicKey.
+tx.feePayer = userKeypair.publicKey;
+// Serialize the transaction without requiring all signatures.
+const serializedTx = tx.serialize({
+requireAllSignatures: false,
+});
+const txBase64 = serializedTx.toString(&quot;base64&quot;);
+// Deserialize the transaction.
+const recoveredTx = Transaction.from(Buffer.from(txBase64, &quot;base64&quot;));
+// Sign the transaction with userKeypair.
+recoveredTx.partialSign(userKeypair);
+// The claimant sends the transaction.
+const txId = await provider.sendAndConfirm(recoveredTx, [userKeypair], { commitment: 'confirmed' });
+console.log(&quot;Rewards Claimed&quot;);
+console.log(&quot;Transaction ID:&quot;, txId);
+});</p>
+<p><strong>Explanation of the example:</strong></p>
+<ol>
+<li><strong><code>claimRewardsIx</code>:</strong> The instruction for claiming rewards is constructed.
+<ul>
+<li><strong><code>rewardAmount</code>:</strong> The amount of the reward to be claimed.</li>
+<li><strong><code>userKeypair.publicKey</code>:</strong> The public key of the user claiming the reward.</li>
+<li><strong><code>nonce</code>:</strong> A unique number to prevent replay attacks.</li>
+<li><strong><code>.signers([adminKeypair])</code>:</strong> Specifies that the administrator (<code>adminKeypair</code>) will partially sign this instruction.</li>
+</ul>
+</li>
+<li><strong><code>tx</code>:</strong> A new transaction is created and the <code>claimRewardsIx</code> instruction is added to it.</li>
+<li><strong><code>tx.recentBlockhash</code>:</strong> The recent <code>blockhash</code> is set for the transaction.</li>
+<li><strong><code>tx.feePayer = userKeypair.publicKey;</code>:</strong> The user claiming the reward (<code>userKeypair</code>) is set as the payer of the transaction fees.</li>
+<li><strong>Serialization and deserialization:</strong> The transaction is serialized and then deserialized. This is an intermediate step that might be necessary in certain workflows, for example, when the transaction is signed at different times or by different entities.</li>
+<li><strong><code>recoveredTx.partialSign(userKeypair);</code>:</strong> The user signs the deserialized transaction.</li>
+<li><strong><code>provider.sendAndConfirm</code>:</strong> The transaction, now signed by both the administrator and the user, is sent to the network for confirmation.</li>
+</ol>
+<h2 id="acknowledgments">Acknowledgments</h2>
+<ul>
+<li><a href="https://solana.com/">Solana</a></li>
+<li><a href="https://project-serum.github.io/anchor/">Anchor</a></li>
+</ul>
+
+            
+            
+        </body>
+        </html>

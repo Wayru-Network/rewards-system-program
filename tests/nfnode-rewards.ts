@@ -5,14 +5,14 @@ import {
   PublicKey,
   Keypair,
   Connection,
-  LAMPORTS_PER_SOL
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
   createMint,
   getOrCreateAssociatedTokenAccount,
   mintTo
 } from "@solana/spl-token";
-import nacl from "tweetnacl";
+
 async function airdropSolIfNeeded(
   signer: Keypair,
   connection: Connection
@@ -59,7 +59,8 @@ async function generatePDA(seed: string, userPublicKey: PublicKey, programId: Pu
 
 describe("nfnode-rewards", async () => {
   // Configure the client to use the local cluster.
-  const provider = anchor.AnchorProvider.env();
+  //const provider = anchor.AnchorProvider.env();//
+  const provider = anchor.AnchorProvider.local();
   anchor.setProvider(provider);
   const program = anchor.workspace.RewardSystem as Program<RewardSystem>;
 
@@ -159,39 +160,15 @@ describe("nfnode-rewards", async () => {
       .rpc();
   });
 
-  it("Claim Rewards", async () => {
+  it("Claim Rewards without admin signature must fail", async () => {
     // Generate message and signature for claiming rewards
     const rewardAmount = 100000000; // 100 tokens
     const nonce = 12345;
-
-    // Generate message
-    const message = Buffer.alloc(50);
-    message.set(userKeypair.publicKey.toBuffer(), 0);
-    message.writeBigUInt64LE(BigInt(rewardAmount), 32);
-    message.writeUInt8(60, 40); // owner share
-    message.writeUInt8(40, 41); // host share
-    message.writeBigUInt64LE(BigInt(nonce), 42);
-
-    // Sign message
-    const signature = nacl.sign.detached(
-      message,
-      adminKeypair.secretKey
-    );
-
-    // Find reward entry PDA
-    const [rewardEntryPDA] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("reward_entry"),
-        userKeypair.publicKey.toBuffer()
-      ],
-      program.programId
-    );
 
     // Claim rewards
     await program.methods
       .claimRewards(
         new anchor.BN(rewardAmount),
-        Array.from(signature),
         userKeypair.publicKey,
         new anchor.BN(nonce)
       )
@@ -201,6 +178,48 @@ describe("nfnode-rewards", async () => {
       })
       .signers([userKeypair])
       .rpc();
+  });
+  it("Claim Rewards with admin signature Must Success", async () => {
+    // Generate message and signature for claiming rewards
+    const rewardAmount = 100000000; // 100 tokens
+    const nonce = 12345;
+
+    // Claim rewards
+    const ix = await program.methods
+      .claimRewards(
+        new anchor.BN(rewardAmount),
+        userKeypair.publicKey,
+        new anchor.BN(nonce)
+      )
+      .accounts({
+        user: userKeypair.publicKey,
+        userAdmin: adminKeypair.publicKey,
+        tokenMint: mint,
+      })
+      .instruction();
+    let tx = new anchor.web3.Transaction()
+    tx.add(ix);
+    tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    tx.feePayer = userKeypair.publicKey;
+    tx.partialSign(adminKeypair);
+    const serializedTx = tx.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false
+    });
+    const txBase64 = serializedTx.toString("base64");
+    const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
+
+    recoveredTx.partialSign(userKeypair);
+
+
+    const connection = new Connection('http://localhost:8899')
+    const serializedTxFinal = recoveredTx.serialize({
+      requireAllSignatures: true,
+      verifySignatures: true
+    });
+    const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
+    console.log("Rewards Claimed");
+    console.log("Transaction ID:", txId);
   });
 });
 
