@@ -12,6 +12,15 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo
 } from "@solana/spl-token";
+import * as dotenv from "dotenv"
+async function getKeypair(type: 'admin' | 'user') {
+  console.log('getting keypair')
+  dotenv.config()
+  const secret = JSON.parse(type === 'admin' ? process.env.ADMIN_PRIVATE_KEY : process.env.USER_PRIVATE_KEY) as number[]
+  const secretKey = Uint8Array.from(secret)
+  const keypairFromSecretKey = anchor.web3.Keypair.fromSecretKey(secretKey)
+  return keypairFromSecretKey
+}
 
 async function airdropSolIfNeeded(
   signer: Keypair,
@@ -26,7 +35,7 @@ async function airdropSolIfNeeded(
     console.log("Airdropping 1 SOL...")
     const airdropSignature = await connection.requestAirdrop(
       signer.publicKey,
-      10 * LAMPORTS_PER_SOL
+      5 * LAMPORTS_PER_SOL
     )
 
     const latestBlockHash = await connection.getLatestBlockhash()
@@ -58,15 +67,16 @@ async function generatePDA(seed: string, userPublicKey: PublicKey, programId: Pu
 }
 
 describe("nfnode-rewards", async () => {
+  console.log("Starting test...");
   // Configure the client to use the local cluster.
   //const provider = anchor.AnchorProvider.env();//
-  const provider = anchor.AnchorProvider.local();
+  const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const program = anchor.workspace.RewardSystem as Program<RewardSystem>;
 
   // Keypairs
-  const adminKeypair = Keypair.generate();
-  const userKeypair = Keypair.generate();
+  const adminKeypair = await getKeypair('admin');
+  const userKeypair = await getKeypair('user')
 
   // SPL Token variables
   let mint: PublicKey;
@@ -212,7 +222,7 @@ describe("nfnode-rewards", async () => {
     recoveredTx.partialSign(userKeypair);
 
 
-    const connection = new Connection('http://localhost:8899')
+    const connection = new Connection('https://api.devnet.solana.com')
     const serializedTxFinal = recoveredTx.serialize({
       requireAllSignatures: true,
       verifySignatures: true

@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("9uEyFrPdQ3UShZKBNhxduk35Mjvi3CQTFzwxapFZtcaK");
+declare_id!("7un3ZxzpjMDd8izEzrieBzeeNDr51LirSmxVPigaZeUV");
 
 #[program]
 pub mod reward_system {
