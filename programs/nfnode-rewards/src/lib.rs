@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::AssociatedToken,
+    associated_token::{ AssociatedToken },
     token::{ self, Token, TokenAccount, Transfer, Mint },
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("7un3ZxzpjMDd8izEzrieBzeeNDr51LirSmxVPigaZeUV");
+declare_id!("9cmgAV1G2CZWEFRbeL5ii2j9zc2DoZcoKQ5YVmMGocjY");
 
 #[program]
 pub mod reward_system {
@@ -13,14 +13,19 @@ pub mod reward_system {
 
     pub fn initialize_system(ctx: Context<InitializeSystem>) -> Result<()> {
         let admin_account = &mut ctx.accounts.admin_account;
-        admin_account.admin_pubkey = ctx.accounts.user.key(); // Guarda la clave pública del administrador
+        admin_account.admin_pubkey = ctx.accounts.user.key();
         Ok(())
     }
 
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
         let admin_account = &mut ctx.accounts.admin_account;
-        require!(ctx.accounts.user.key() == admin_account.admin_pubkey, RewardError::Unauthorized);
-        admin_account.admin_pubkey = new_admin_pubkey; // Actualiza la clave pública del administrador
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.admin_pubkey = new_admin_pubkey;
+        msg!("admin_pubkey: {}", new_admin_pubkey);
+        msg!("user_admin pubkey: {}", ctx.accounts.user.key());
         Ok(())
     }
 
@@ -29,31 +34,42 @@ pub mod reward_system {
         Ok(())
     }
 
-    pub fn claim_rewards(
-        ctx: Context<ClaimRewards>,
-        reward_amount: u64,
-        claimer_pubkey: Pubkey,
-        nonce: u64
-    ) -> Result<()> {
+    pub fn claim_rewards(ctx: Context<ClaimRewards>, reward_amount: u64, nonce: u64) -> Result<()> {
         let reward_entry = &mut ctx.accounts.reward_entry;
-
-        if reward_entry.claimed_nonces.is_empty() {
-            reward_entry.claimed_nonces = vec![]; // Inicializa el vector de nonces
-        }
-
-        require!(!reward_entry.claimed_nonces.contains(&nonce), RewardError::RewardAlreadyClaimed);
-
-        require!(ctx.accounts.user.key() == claimer_pubkey, RewardError::Unauthorized);
         let admin_account = &mut ctx.accounts.admin_account;
+
+        require!(
+            nonce > reward_entry.last_claimed_nonce ||
+                (reward_entry.last_claimed_nonce == 0 && nonce == 1) || // initialization
+                (reward_entry.last_claimed_nonce == u64::MAX && nonce == 1), // overflow unprobably
+            RewardError::NonceAlreadyClaimed
+        );
+        msg!("user pubkey: {}", ctx.accounts.user.key());
+        
         require!(
             ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
-            RewardError::Unauthorized
+            RewardError::UnauthorizedAdmin
         );
         let user_admin_account_info = ctx.accounts.user_admin.to_account_info();
         let is_partially_signed_by_admin = user_admin_account_info.is_signer;
         require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
+        require!(
+            ctx.accounts.user_nft_token_account.mint == ctx.accounts.nft_mint_address.key(),
+            RewardError::InvalidNftMint
+        );
+    
+        require!(
+            ctx.accounts.user_nft_token_account.owner == ctx.accounts.user.key(),
+            RewardError::UnauthorizedUser
+        );
+        
+        // Check that the amount of the NFT is greater than 0
+        require!(
+            ctx.accounts.user_nft_token_account.amount > 0,
+            RewardError::InsufficientNftBalance
+        );
+        reward_entry.last_claimed_nonce = nonce;
 
-        reward_entry.claimed_nonces.push(nonce);
         let authority_bump = ctx.bumps.token_storage_authority;
         let authority_seeds = &[&b"token_storage"[..], &[authority_bump]];
         let signer_seeds = &[&authority_seeds[..]];
@@ -69,6 +85,7 @@ pub mod reward_system {
             ),
             reward_amount
         )?;
+
         Ok(())
     }
 }
@@ -154,6 +171,8 @@ pub struct ClaimRewards<'info> {
         associated_token::authority = user
     )]
     pub user_token_account: Account<'info, TokenAccount>,
+    pub nft_mint_address: Account<'info, Mint>,
+    pub user_nft_token_account: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
     pub token_program: Program<'info, Token>,
@@ -163,7 +182,7 @@ pub struct ClaimRewards<'info> {
 
 #[account]
 pub struct RewardEntry {
-    pub claimed_nonces: Vec<u64>,
+    pub last_claimed_nonce: u64,
 }
 
 #[account]
@@ -173,14 +192,18 @@ pub struct AdminAccount {
 
 #[error_code]
 pub enum RewardError {
-    #[msg("The reward has already been claimed.")]
-    RewardAlreadyClaimed,
-    #[msg("Invalid admin signature.")]
-    InvalidAdminSignature,
-    #[msg("Unauthorized access.")]
-    Unauthorized,
+    #[msg("Unauthorized access admin.")]
+    UnauthorizedAdmin,
+    #[msg("Unauthorized access user.")]
+    UnauthorizedUser,
     #[msg("Missing admin signature.")]
     MissingAdminSignature,
+    #[msg("Nonce already claimed or invalid.")]
+    NonceAlreadyClaimed,
+    #[msg("Invalid NFT mint.")]
+    InvalidNftMint,
+    #[msg("Insufficient NFT balance.")]
+    InsufficientNftBalance,
 }
 
 impl<'info> FundTokenStorage<'info> {
