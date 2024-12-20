@@ -367,7 +367,7 @@ describe("nfnode-rewards", async () => {
         user: adminKeypair.publicKey,
       })
       .signers([adminKeypair])
-      .rpc({commitment:'finalized'});
+      .rpc({commitment:'confirmed'});
   });
 
   it("Attempt to Claim Rewards While Paused (should fail)", async () => {
@@ -425,7 +425,7 @@ describe("nfnode-rewards", async () => {
         user: adminKeypair.publicKey,
       })
       .signers([adminKeypair])
-      .rpc({commitment:'finalized'});
+      .rpc({commitment:'confirmed'});
   });
 
   it("Claim Rewards After Unpausing (should succeed)", async () => {
