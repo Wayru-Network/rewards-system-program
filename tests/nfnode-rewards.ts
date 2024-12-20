@@ -359,6 +359,115 @@ describe("nfnode-rewards", async () => {
     console.log("Rewards Claimed");
     console.log("Transaction ID:", txId);
   });
+  it("Pause Program", async () => {
+    // Pause the program
+    await program.methods
+      .pauseProgram()
+      .accounts({
+        user: adminKeypair.publicKey,
+      })
+      .signers([adminKeypair])
+      .rpc({commitment:'finalized'});
+  });
+
+  it("Attempt to Claim Rewards While Paused (should fail)", async () => {
+    // Attempt to claim rewards while paused (should fail)
+    const rewardAmount = new anchor.BN(100000000); // 100 tokens
+    const nonce = new anchor.BN(123458);
+    let claimError = null;
+    try {
+      const ix = await program.methods
+        .claimRewards(rewardAmount, nonce)
+        .accounts({
+          userAdmin: adminKeypair.publicKey,
+          user: userKeypair.publicKey,
+          tokenMint: mint,
+          nftMintAddress: nftMint,
+          userNftTokenAccount: userNFTTokenAccount,
+        })
+        .instruction();
+
+      let tx = new anchor.web3.Transaction();
+      tx.add(ix);
+      tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+      tx.feePayer = userKeypair.publicKey;
+      tx.partialSign(adminKeypair);
+
+      const serializedTx = tx.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      const txBase64 = serializedTx.toString("base64");
+      const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
+      recoveredTx.partialSign(userKeypair);
+
+      const connection = new Connection(process.env.SOLANA_API_URL);
+      const serializedTxFinal = recoveredTx.serialize({
+        requireAllSignatures: true,
+        verifySignatures: true,
+      });
+
+      await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
+    } catch (error) {
+      claimError = error;
+    }
+
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Program is paused.");
+  });
+
+  it("Unpause Program", async () => {
+    // Unpause the program
+    await program.methods
+      .unpauseProgram()
+      .accounts({
+        user: adminKeypair.publicKey,
+      })
+      .signers([adminKeypair])
+      .rpc({commitment:'finalized'});
+  });
+
+  it("Claim Rewards After Unpausing (should succeed)", async () => {
+    // Claim rewards after unpausing (should succeed)
+    const rewardAmount = new anchor.BN(100000000); // 100 tokens
+    const nonce2 = new anchor.BN(123459); // Use a new nonce
+    const ix2 = await program.methods
+      .claimRewards(rewardAmount, nonce2)
+      .accounts({
+        userAdmin: adminKeypair.publicKey,
+        user: userKeypair.publicKey,
+        tokenMint: mint,
+        nftMintAddress: nftMint,
+        userNftTokenAccount: userNFTTokenAccount,
+      })
+      .instruction();
+
+    let tx2 = new anchor.web3.Transaction();
+    tx2.add(ix2);
+    tx2.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    tx2.feePayer = userKeypair.publicKey;
+    tx2.partialSign(adminKeypair);
+
+    const serializedTx2 = tx2.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+
+    const txBase642 = serializedTx2.toString("base64");
+    const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
+    recoveredTx2.partialSign(userKeypair);
+
+    const connection = new Connection(process.env.SOLANA_API_URL);
+    const serializedTxFinal2 = recoveredTx2.serialize({
+      requireAllSignatures: true,
+      verifySignatures: true,
+    });
+
+    const txId2 = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal2, { commitment: 'confirmed' });
+    console.log("Rewards Claimed Successfully After Unpausing");
+    console.log("Transaction ID:", txId2);
+  });
 });
 
 

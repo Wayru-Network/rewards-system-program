@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("9cmgAV1G2CZWEFRbeL5ii2j9zc2DoZcoKQ5YVmMGocjY");
+declare_id!("2jeCFDxkHpDPvnLrQEcWfaj1nG6YrZtpSfJTcaDA6W6n");
 
 #[program]
 pub mod reward_system {
@@ -37,7 +37,7 @@ pub mod reward_system {
     pub fn claim_rewards(ctx: Context<ClaimRewards>, reward_amount: u64, nonce: u64) -> Result<()> {
         let reward_entry = &mut ctx.accounts.reward_entry;
         let admin_account = &mut ctx.accounts.admin_account;
-
+        require!(!admin_account.paused, RewardError::ProgramPaused);
         require!(
             nonce > reward_entry.last_claimed_nonce ||
                 (reward_entry.last_claimed_nonce == 0 && nonce == 1) || // initialization
@@ -45,7 +45,7 @@ pub mod reward_system {
             RewardError::NonceAlreadyClaimed
         );
         msg!("user pubkey: {}", ctx.accounts.user.key());
-        
+
         require!(
             ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
@@ -57,12 +57,12 @@ pub mod reward_system {
             ctx.accounts.user_nft_token_account.mint == ctx.accounts.nft_mint_address.key(),
             RewardError::InvalidNftMint
         );
-    
+
         require!(
             ctx.accounts.user_nft_token_account.owner == ctx.accounts.user.key(),
             RewardError::UnauthorizedUser
         );
-        
+
         // Check that the amount of the NFT is greater than 0
         require!(
             ctx.accounts.user_nft_token_account.amount > 0,
@@ -86,6 +86,25 @@ pub mod reward_system {
             reward_amount
         )?;
 
+        Ok(())
+    }
+    pub fn pause_program(ctx: Context<UpdateAdmin>) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.paused = true;
+        Ok(())
+    }
+
+    pub fn unpause_program(ctx: Context<UpdateAdmin>) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.paused = false;
         Ok(())
     }
 }
@@ -188,6 +207,7 @@ pub struct RewardEntry {
 #[account]
 pub struct AdminAccount {
     pub admin_pubkey: Pubkey,
+    pub paused: bool,
 }
 
 #[error_code]
@@ -204,6 +224,8 @@ pub enum RewardError {
     InvalidNftMint,
     #[msg("Insufficient NFT balance.")]
     InsufficientNftBalance,
+    #[msg("Program is paused.")]
+    ProgramPaused,
 }
 
 impl<'info> FundTokenStorage<'info> {
