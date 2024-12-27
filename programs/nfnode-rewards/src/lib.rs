@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("2jeCFDxkHpDPvnLrQEcWfaj1nG6YrZtpSfJTcaDA6W6n");
+declare_id!("ECu399aX2ikU9x1R6cFQm2nxNE31YfDgTvGtX7E9ChQL");
 
 #[program]
 pub mod reward_system {
@@ -68,7 +68,14 @@ pub mod reward_system {
             ctx.accounts.user_nft_token_account.amount > 0,
             RewardError::InsufficientNftBalance
         );
+        let current_timestamp = Clock::get()?.unix_timestamp;
+        let last_claim_day = reward_entry.last_claimed_timestamp / 60; //86400; // 86400 seconds in a day
+        let current_day = current_timestamp / 60; //86400;
+        msg!("current_day: {}", current_day);
+        msg!("last_claim_day: {}", last_claim_day);
+        require!(current_day > last_claim_day, RewardError::ClaimAlreadyMadeToday);
         reward_entry.last_claimed_nonce = nonce;
+        reward_entry.last_claimed_timestamp = current_timestamp;
 
         let authority_bump = ctx.bumps.token_storage_authority;
         let authority_seeds = &[&b"token_storage"[..], &[authority_bump]];
@@ -165,11 +172,12 @@ pub struct ClaimRewards<'info> {
     pub user_admin: Signer<'info>,
     #[account(mut)]
     pub user: Signer<'info>,
+    pub nft_mint_address: Account<'info, Mint>,
     #[account(
         init_if_needed,
         payer = user,
         space = 8 + std::mem::size_of::<RewardEntry>(),
-        seeds = [b"reward_entry", user.key().as_ref()],
+        seeds = [b"reward_entry", user.key().as_ref(), nft_mint_address.key().as_ref()],
         bump
     )]
     pub reward_entry: Account<'info, RewardEntry>,
@@ -190,7 +198,6 @@ pub struct ClaimRewards<'info> {
         associated_token::authority = user
     )]
     pub user_token_account: Account<'info, TokenAccount>,
-    pub nft_mint_address: Account<'info, Mint>,
     pub user_nft_token_account: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
@@ -202,6 +209,7 @@ pub struct ClaimRewards<'info> {
 #[account]
 pub struct RewardEntry {
     pub last_claimed_nonce: u64,
+    pub last_claimed_timestamp: i64,
 }
 
 #[account]
@@ -226,6 +234,8 @@ pub enum RewardError {
     InsufficientNftBalance,
     #[msg("Program is paused.")]
     ProgramPaused,
+    #[msg("Claim already made today.")]
+    ClaimAlreadyMadeToday,
 }
 
 impl<'info> FundTokenStorage<'info> {

@@ -6,6 +6,7 @@ import {
   Keypair,
   Connection,
   LAMPORTS_PER_SOL,
+  SimulatedTransactionAccountInfo
 } from "@solana/web3.js";
 import {
   createMint,
@@ -244,7 +245,7 @@ describe("nfnode-rewards", async () => {
   it("Claim Rewards without admin signature must fail", async () => {
     // Define the reward amount and nonce as BigNumbers
     const rewardAmount = new anchor.BN(100000000); // 100 tokens
-    const nonce = new anchor.BN(12345);
+    const nonce = new anchor.BN(32345);
 
     let errorOccurred = false;
     let errorMessage = "";
@@ -277,7 +278,7 @@ describe("nfnode-rewards", async () => {
     try {
       // Generate message and signature for claiming rewards
       const rewardAmount = 100000000; // 100 tokens
-      const nonce = 123456;
+      const nonce = 32346;
       // Claim rewards
       const ix = await program.methods
         .claimRewards(
@@ -323,7 +324,7 @@ describe("nfnode-rewards", async () => {
   it("Claim Rewards with admin signature Must Success", async () => {
     // Generate message and signature for claiming rewards
     const rewardAmount = 100000000; // 100 tokens
-    const nonce = 123457;
+    const nonce = 32347;
     // Claim rewards
     const ix = await program.methods
       .claimRewards(
@@ -367,13 +368,13 @@ describe("nfnode-rewards", async () => {
         user: adminKeypair.publicKey,
       })
       .signers([adminKeypair])
-      .rpc({commitment:'confirmed'});
+      .rpc({ commitment: 'confirmed' });
   });
 
   it("Attempt to Claim Rewards While Paused (should fail)", async () => {
     // Attempt to claim rewards while paused (should fail)
     const rewardAmount = new anchor.BN(100000000); // 100 tokens
-    const nonce = new anchor.BN(123458);
+    const nonce = new anchor.BN(32348);
     let claimError = null;
     try {
       const ix = await program.methods
@@ -425,13 +426,14 @@ describe("nfnode-rewards", async () => {
         user: adminKeypair.publicKey,
       })
       .signers([adminKeypair])
-      .rpc({commitment:'confirmed'});
+      .rpc({ commitment: 'confirmed' });
   });
 
   it("Claim Rewards After Unpausing (should succeed)", async () => {
+    await new Promise(resolve => setTimeout(resolve, 60000))
     // Claim rewards after unpausing (should succeed)
     const rewardAmount = new anchor.BN(100000000); // 100 tokens
-    const nonce2 = new anchor.BN(123459); // Use a new nonce
+    const nonce2 = new anchor.BN(32349); // Use a new nonce
     const ix2 = await program.methods
       .claimRewards(rewardAmount, nonce2)
       .accounts({
@@ -468,6 +470,141 @@ describe("nfnode-rewards", async () => {
     console.log("Rewards Claimed Successfully After Unpausing");
     console.log("Transaction ID:", txId2);
   });
+  it("Attempt to Claim Rewards Twice in less than 60 seconds (should fail)", async () => {
+    let claimError = null;
+    try {
+      // Claim rewards for the first time (should succeed)
+      const rewardAmount = new anchor.BN(100000000); // 100 tokens
+      const nonce = new anchor.BN(223460); // Use a new nonce
+
+      // Get the latest blockhash before each transaction
+      const latestBlockHash = await provider.connection.getLatestBlockhash();
+
+      const ix = await program.methods
+        .claimRewards(rewardAmount, nonce)
+        .accounts({
+          userAdmin: adminKeypair.publicKey,
+          user: userKeypair.publicKey,
+          tokenMint: mint,
+          nftMintAddress: nftMint,
+          userNftTokenAccount: userNFTTokenAccount,
+        })
+        .instruction();
+
+      let tx = new anchor.web3.Transaction();
+      tx.add(ix);
+      tx.recentBlockhash = latestBlockHash.blockhash; // Use the latest blockhash
+      tx.feePayer = userKeypair.publicKey;
+      tx.partialSign(adminKeypair);
+
+      const serializedTx = tx.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      const txBase64 = serializedTx.toString("base64");
+      const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
+      recoveredTx.partialSign(userKeypair);
+
+      const connection = new Connection(process.env.SOLANA_API_URL);
+      const serializedTxFinal = recoveredTx.serialize({
+        requireAllSignatures: true,
+        verifySignatures: true,
+      });
+
+      const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
+      console.log("First Reward Claimed Successfully");
+      console.log("Transaction ID:", txId);
+
+      // Add a delay of 5 seconds after the transaction is confirmed
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      // Attempt to claim rewards for the second time (should fail)
+      const nonce2 = new anchor.BN(123461); // Use a new nonce
+
+      const latestBlockHash2 = await provider.connection.getLatestBlockhash();
+      const ix2 = await program.methods
+        .claimRewards(rewardAmount, nonce2)
+        .accounts({
+          userAdmin: adminKeypair.publicKey,
+          user: userKeypair.publicKey,
+          tokenMint: mint,
+          nftMintAddress: nftMint,
+          userNftTokenAccount: userNFTTokenAccount,
+        })
+        .instruction();
+
+      let tx2 = new anchor.web3.Transaction();
+      tx2.add(ix2);
+      tx2.recentBlockhash = latestBlockHash2.blockhash;
+      tx2.feePayer = userKeypair.publicKey;
+      tx2.partialSign(adminKeypair);
+
+      const serializedTx2 = tx2.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      const txBase642 = serializedTx2.toString("base64");
+      const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
+      recoveredTx2.partialSign(userKeypair);
+
+      const connection2 = new Connection(process.env.SOLANA_API_URL);
+      const serializedTxFinal2 = recoveredTx2.serialize({
+        requireAllSignatures: true,
+        verifySignatures: true,
+      });
+
+      await anchor.web3.sendAndConfirmRawTransaction(connection2, serializedTxFinal2, { commitment: 'confirmed' });
+    } catch (error) {
+      claimError = error;
+    }
+
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Claim already made today.");
+  });
+  it("Claim Rewards After 60 seconds (should succeed)", async () => {
+    await new Promise(resolve => setTimeout(resolve, 60000))
+    // Claim rewards after unpausing (should succeed)
+    const rewardAmount = new anchor.BN(100000000); // 100 tokens
+    const nonce2 = new anchor.BN(123460); // Use a new nonce
+    const ix2 = await program.methods
+      .claimRewards(rewardAmount, nonce2)
+      .accounts({
+        userAdmin: adminKeypair.publicKey,
+        user: userKeypair.publicKey,
+        tokenMint: mint,
+        nftMintAddress: nftMint,
+        userNftTokenAccount: userNFTTokenAccount,
+      })
+      .instruction();
+
+    let tx2 = new anchor.web3.Transaction();
+    tx2.add(ix2);
+    tx2.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    tx2.feePayer = userKeypair.publicKey;
+    tx2.partialSign(adminKeypair);
+
+    const serializedTx2 = tx2.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+
+    const txBase642 = serializedTx2.toString("base64");
+    const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
+    recoveredTx2.partialSign(userKeypair);
+
+    const connection = new Connection(process.env.SOLANA_API_URL);
+    const serializedTxFinal2 = recoveredTx2.serialize({
+      requireAllSignatures: true,
+      verifySignatures: true,
+    });
+
+    const txId2 = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal2, { commitment: 'confirmed' });
+    console.log("Rewards Claimed Successfully After Unpausing");
+    console.log("Transaction ID:", txId2);
+  });
+
 });
 
 
