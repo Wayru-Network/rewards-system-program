@@ -5,7 +5,7 @@ use anchor_spl::{
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("ECu399aX2ikU9x1R6cFQm2nxNE31YfDgTvGtX7E9ChQL");
+declare_id!("AHYP9XbJ5HySC95V2gL65vHoiaQ9G3Y2af9bHoUyrE5E");
 
 #[program]
 pub mod reward_system {
@@ -44,8 +44,6 @@ pub mod reward_system {
                 (reward_entry.last_claimed_nonce == u64::MAX && nonce == 1), // overflow unprobably
             RewardError::NonceAlreadyClaimed
         );
-        msg!("user pubkey: {}", ctx.accounts.user.key());
-
         require!(
             ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
@@ -53,26 +51,13 @@ pub mod reward_system {
         let user_admin_account_info = ctx.accounts.user_admin.to_account_info();
         let is_partially_signed_by_admin = user_admin_account_info.is_signer;
         require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
-        require!(
-            ctx.accounts.user_nft_token_account.mint == ctx.accounts.nft_mint_address.key(),
-            RewardError::InvalidNftMint
-        );
-
-        require!(
-            ctx.accounts.user_nft_token_account.owner == ctx.accounts.user.key(),
-            RewardError::UnauthorizedUser
-        );
-
-        // Check that the amount of the NFT is greater than 0
-        require!(
-            ctx.accounts.user_nft_token_account.amount > 0,
-            RewardError::InsufficientNftBalance
-        );
         let current_timestamp = Clock::get()?.unix_timestamp;
-        let last_claim_day = reward_entry.last_claimed_timestamp / 60; //86400; // 86400 seconds in a day
-        let current_day = current_timestamp / 60; //86400;
-        msg!("current_day: {}", current_day);
-        msg!("last_claim_day: {}", last_claim_day);
+        let last_claim_day = reward_entry.last_claimed_timestamp
+            .checked_div(86400)
+            .ok_or(RewardError::ArithmeticOverflow)?;
+        let current_day = current_timestamp
+            .checked_div(86400)
+            .ok_or(RewardError::ArithmeticOverflow)?;
         require!(current_day > last_claim_day, RewardError::ClaimAlreadyMadeToday);
         reward_entry.last_claimed_nonce = nonce;
         reward_entry.last_claimed_timestamp = current_timestamp;
@@ -198,7 +183,6 @@ pub struct ClaimRewards<'info> {
         associated_token::authority = user
     )]
     pub user_token_account: Account<'info, TokenAccount>,
-    pub user_nft_token_account: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
     pub token_program: Program<'info, Token>,
@@ -228,14 +212,12 @@ pub enum RewardError {
     MissingAdminSignature,
     #[msg("Nonce already claimed or invalid.")]
     NonceAlreadyClaimed,
-    #[msg("Invalid NFT mint.")]
-    InvalidNftMint,
-    #[msg("Insufficient NFT balance.")]
-    InsufficientNftBalance,
     #[msg("Program is paused.")]
     ProgramPaused,
     #[msg("Claim already made today.")]
     ClaimAlreadyMadeToday,
+    #[msg("Aricmetic overflow.")]
+    ArithmeticOverflow,
 }
 
 impl<'info> FundTokenStorage<'info> {
