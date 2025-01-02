@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::AssociatedToken,
+    associated_token::{ AssociatedToken },
     token::{ self, Token, TokenAccount, Transfer, Mint },
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("7un3ZxzpjMDd8izEzrieBzeeNDr51LirSmxVPigaZeUV");
+declare_id!("AHYP9XbJ5HySC95V2gL65vHoiaQ9G3Y2af9bHoUyrE5E");
 
 #[program]
 pub mod reward_system {
@@ -13,14 +13,19 @@ pub mod reward_system {
 
     pub fn initialize_system(ctx: Context<InitializeSystem>) -> Result<()> {
         let admin_account = &mut ctx.accounts.admin_account;
-        admin_account.admin_pubkey = ctx.accounts.user.key(); // Guarda la clave pública del administrador
+        admin_account.admin_pubkey = ctx.accounts.user.key();
         Ok(())
     }
 
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
         let admin_account = &mut ctx.accounts.admin_account;
-        require!(ctx.accounts.user.key() == admin_account.admin_pubkey, RewardError::Unauthorized);
-        admin_account.admin_pubkey = new_admin_pubkey; // Actualiza la clave pública del administrador
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.admin_pubkey = new_admin_pubkey;
+        msg!("admin_pubkey: {}", new_admin_pubkey);
+        msg!("user_admin pubkey: {}", ctx.accounts.user.key());
         Ok(())
     }
 
@@ -29,31 +34,34 @@ pub mod reward_system {
         Ok(())
     }
 
-    pub fn claim_rewards(
-        ctx: Context<ClaimRewards>,
-        reward_amount: u64,
-        claimer_pubkey: Pubkey,
-        nonce: u64
-    ) -> Result<()> {
+    pub fn claim_rewards(ctx: Context<ClaimRewards>, reward_amount: u64, nonce: u64) -> Result<()> {
         let reward_entry = &mut ctx.accounts.reward_entry;
-
-        if reward_entry.claimed_nonces.is_empty() {
-            reward_entry.claimed_nonces = vec![]; // Inicializa el vector de nonces
-        }
-
-        require!(!reward_entry.claimed_nonces.contains(&nonce), RewardError::RewardAlreadyClaimed);
-
-        require!(ctx.accounts.user.key() == claimer_pubkey, RewardError::Unauthorized);
         let admin_account = &mut ctx.accounts.admin_account;
+        require!(!admin_account.paused, RewardError::ProgramPaused);
+        require!(
+            nonce > reward_entry.last_claimed_nonce ||
+                (reward_entry.last_claimed_nonce == 0 && nonce == 1) || // initialization
+                (reward_entry.last_claimed_nonce == u64::MAX && nonce == 1), // overflow unprobably
+            RewardError::NonceAlreadyClaimed
+        );
         require!(
             ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
-            RewardError::Unauthorized
+            RewardError::UnauthorizedAdmin
         );
         let user_admin_account_info = ctx.accounts.user_admin.to_account_info();
         let is_partially_signed_by_admin = user_admin_account_info.is_signer;
         require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
+        let current_timestamp = Clock::get()?.unix_timestamp;
+        let last_claim_day = reward_entry.last_claimed_timestamp
+            .checked_div(86400)
+            .ok_or(RewardError::ArithmeticOverflow)?;
+        let current_day = current_timestamp
+            .checked_div(86400)
+            .ok_or(RewardError::ArithmeticOverflow)?;
+        require!(current_day > last_claim_day, RewardError::ClaimAlreadyMadeToday);
+        reward_entry.last_claimed_nonce = nonce;
+        reward_entry.last_claimed_timestamp = current_timestamp;
 
-        reward_entry.claimed_nonces.push(nonce);
         let authority_bump = ctx.bumps.token_storage_authority;
         let authority_seeds = &[&b"token_storage"[..], &[authority_bump]];
         let signer_seeds = &[&authority_seeds[..]];
@@ -69,6 +77,26 @@ pub mod reward_system {
             ),
             reward_amount
         )?;
+
+        Ok(())
+    }
+    pub fn pause_program(ctx: Context<UpdateAdmin>) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.paused = true;
+        Ok(())
+    }
+
+    pub fn unpause_program(ctx: Context<UpdateAdmin>) -> Result<()> {
+        let admin_account = &mut ctx.accounts.admin_account;
+        require!(
+            ctx.accounts.user.key() == admin_account.admin_pubkey,
+            RewardError::UnauthorizedAdmin
+        );
+        admin_account.paused = false;
         Ok(())
     }
 }
@@ -129,11 +157,12 @@ pub struct ClaimRewards<'info> {
     pub user_admin: Signer<'info>,
     #[account(mut)]
     pub user: Signer<'info>,
+    pub nft_mint_address: Account<'info, Mint>,
     #[account(
         init_if_needed,
         payer = user,
         space = 8 + std::mem::size_of::<RewardEntry>(),
-        seeds = [b"reward_entry", user.key().as_ref()],
+        seeds = [b"reward_entry", user.key().as_ref(), nft_mint_address.key().as_ref()],
         bump
     )]
     pub reward_entry: Account<'info, RewardEntry>,
@@ -163,24 +192,32 @@ pub struct ClaimRewards<'info> {
 
 #[account]
 pub struct RewardEntry {
-    pub claimed_nonces: Vec<u64>,
+    pub last_claimed_nonce: u64,
+    pub last_claimed_timestamp: i64,
 }
 
 #[account]
 pub struct AdminAccount {
     pub admin_pubkey: Pubkey,
+    pub paused: bool,
 }
 
 #[error_code]
 pub enum RewardError {
-    #[msg("The reward has already been claimed.")]
-    RewardAlreadyClaimed,
-    #[msg("Invalid admin signature.")]
-    InvalidAdminSignature,
-    #[msg("Unauthorized access.")]
-    Unauthorized,
+    #[msg("Unauthorized access admin.")]
+    UnauthorizedAdmin,
+    #[msg("Unauthorized access user.")]
+    UnauthorizedUser,
     #[msg("Missing admin signature.")]
     MissingAdminSignature,
+    #[msg("Nonce already claimed or invalid.")]
+    NonceAlreadyClaimed,
+    #[msg("Program is paused.")]
+    ProgramPaused,
+    #[msg("Claim already made today.")]
+    ClaimAlreadyMadeToday,
+    #[msg("Aricmetic overflow.")]
+    ArithmeticOverflow,
 }
 
 impl<'info> FundTokenStorage<'info> {
