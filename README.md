@@ -138,4 +138,55 @@ it("Claim Rewards After Unpausing (should succeed)", async () => {
     // 8. Deserialize the transaction from base64
     const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
 
-    // 9. Sign the transaction with the
+    // 9. Sign the transaction with the user's keypair
+    recoveredTx.partialSign(userKeypair);
+
+    // 10. Serialize the transaction for sending
+    const connection = new Connection(process.env.SOLANA_API_URL);
+    const serializedTxFinal = recoveredTx.serialize({
+      requireAllSignatures: true,
+      verifySignatures: true,
+    });
+
+    // 11. Send and confirm the transaction
+    const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
+
+    console.log("Rewards Claimed Successfully");
+    console.log("Transaction ID:", txId);
+  });
+```
+
+**Explanation of the example:**
+
+1. **Define reward amount and nonce:**
+    *   `rewardAmount`: The amount of tokens to be claimed.
+    *   `nonce`: A unique number for each claim to prevent replay attacks. The program checks that the nonce is greater than the last claimed nonce for the user and NFT, or that it's the initial claim (nonce 1), or that it's a new claim after a nonce overflow.
+2. **Build the instruction:**
+    *   `claimRewards(rewardAmount, nonce)`: Calls the `claim_rewards` function of the program with the specified amount and nonce.
+    *   `.accounts(...)`: Specifies the accounts involved in the transaction, including the admin, user, token mint, NFT mint, and various PDAs.
+    *   `.instruction()`: Creates the instruction object.
+3. **Create transaction:**
+    *   `new anchor.web3.Transaction()`: Creates a new transaction.
+    *   `tx.add(ix)`: Adds the `claimRewards` instruction to the transaction.
+4. **Set blockhash and fee payer:**
+    *   `tx.recentBlockhash`: Sets the recent blockhash for the transaction.
+    *   `tx.feePayer = userKeypair.publicKey`: Sets the user as the fee payer.
+5. **Partial sign (admin):**
+    *   `tx.partialSign(adminKeypair)`: The admin partially signs the transaction.
+6. **Serialize:**
+    *   `tx.serialize(...)`: Serializes the transaction into a format that can be sent over the network.
+7. **Convert to base64:**
+    *   `serializedTx.toString("base64")`: Converts the serialized transaction to a base64 string. This step might be necessary for certain workflows, such as when the transaction is being passed between different systems or when it needs to be stored temporarily.
+8. **Deserialize:**
+    *   `anchor.web3.Transaction.from(...)`: Deserializes the transaction from the base64 string back into a `Transaction` object.
+9. **Partial sign (user):**
+    *   `recoveredTx.partialSign(userKeypair)`: The user signs the deserialized transaction.
+10. **Serialize for sending:**
+    *   `recoveredTx.serialize(...)`: Serializes the transaction again, this time with all required signatures.
+11. **Send and confirm:**
+    *   `anchor.web3.sendAndConfirmRawTransaction(...)`: Sends the transaction to the network and waits for it to be confirmed.
+
+## Acknowledgments
+
+-   [Solana](https://solana.com/)
+-   [Anchor](https://project-serum.github.io/anchor/)
