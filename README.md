@@ -8,7 +8,7 @@ The program enables administrators to set up a reward system, fund it with token
 
 ## Features
 
--   **Reward claiming:** Users can claim rewards based on specified parameters and NFT ownership.
+-   **Reward claiming:** Users can claim rewards based on specified parameters.
 -   **Admin partial signature:** Reward claim transactions require partial signature from an administrator for added security.
 -   **User pays transaction fees:** The user claiming the reward is responsible for paying the transaction fees.
 -   **Secure handling of nonces:** Nonces are used to prevent replay attacks, ensuring each reward claim is unique.
