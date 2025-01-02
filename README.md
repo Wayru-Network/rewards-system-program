@@ -2,17 +2,19 @@
 
 ## Overview
 
-The Rewards System Program is a decentralized application built on the Solana blockchain that allows users to claim rewards based on their contributions. This project utilizes the Anchor framework to simplify the development of Solana programs.
+The Rewards System Program is a decentralized application built on the Solana blockchain that allows users to claim rewards based on their contributions and NFT ownership. This project utilizes the Anchor framework to simplify the development of Solana programs.
 
-The program enables administrators to set up a reward system and users to claim those rewards. Transactions are partially signed by an administrator for enhanced security, while the user claiming the reward pays the transaction fees.
+The program enables administrators to set up a reward system, fund it with tokens, and pause/unpause reward claiming. Users can claim rewards once per day, and each claim requires a partial signature from an administrator for enhanced security. The user claiming the reward pays the transaction fees.
 
 ## Features
 
--   **Reward claiming:** Users can claim rewards based on specified parameters.
+-   **Reward claiming:** Users can claim rewards based on specified parameters and NFT ownership.
 -   **Admin partial signature:** Reward claim transactions require partial signature from an administrator for added security.
 -   **User pays transaction fees:** The user claiming the reward is responsible for paying the transaction fees.
--   **Secure handling of nonces:** Nonces are used to prevent replay attacks.
--   **Token transfers:** The program facilitates token transfers to multiple accounts (owner, host, manufacturer).
+-   **Secure handling of nonces:** Nonces are used to prevent replay attacks, ensuring each reward claim is unique.
+-   **Daily claim limit:** Users can only claim rewards once per day.
+-   **Program pausing:** Administrators can pause the program to prevent reward claims, and unpause it to allow claims again.
+-   **Token transfers:** The program facilitates token transfers from a designated storage account to the user's token account.
 
 ## Getting Started
 
@@ -21,6 +23,8 @@ The program enables administrators to set up a reward system and users to claim 
 -   Rust and Cargo installed on your machine.
 -   Solana CLI installed and configured.
 -   Anchor framework installed.
+-   A Solana wallet with some SOL to pay for transaction fees.
+-   Node.js and npm installed.
 
 ### Installation
 
@@ -31,13 +35,32 @@ The program enables administrators to set up a reward system and users to claim 
     cd rewards-system-program
     ```
 
-2. Build the project:
+2. Install the dependencies:
+
+    ```bash
+    npm install
+    ```
+
+3. Set up environment variables:
+
+    Create a `.env` file in the root directory of the project and add the following variables:
+
+    ```
+    ADMIN_PRIVATE_KEY=<your_admin_private_key>
+    USER_PRIVATE_KEY=<your_user_private_key>
+    USER2_PRIVATE_KEY=<your_user2_private_key>
+    SOLANA_API_URL=<your_solana_api_url>
+    ```
+
+    Replace the placeholders with your actual private keys and Solana API URL. For local testing, you can use `http://localhost:8899` as the API URL.
+
+4. Build the project:
 
     ```bash
     anchor build
     ```
 
-3. Deploy the program to the Solana cluster:
+5. Deploy the program to the Solana cluster:
 
     ```bash
     anchor deploy
@@ -69,65 +92,50 @@ You can interact with the program using the provided TypeScript tests. Modify th
 
 ### Example Usage
 
-Here is an example of how to claim rewards, based on the `Claim Rewards with admin signature Must Success` test:
+Here is an example of how to claim rewards, based on the updated tests:
 
 ```typescript
 // In tests/nfnode-rewards.ts
-it("Claim Rewards with admin signature Must Success", async () => {
-// ... (keypair configuration, airdrops, etc.) ...
-// Build the instruction to claim rewards, specifying that the administrator
-// will partially sign this instruction.
-const claimRewardsIx = await program.methods
-.claimRewards(
-new anchor.BN(rewardAmount), // Reward amount
-userKeypair.publicKey, // User's public key
-new anchor.BN(nonce) // Nonce
-)
-.accounts({
-user: userKeypair.publicKey, // User claiming
-userAdmin: adminKeypair.publicKey, // Administrator
-tokenMint: mint, // Reward token
-// ... other accounts ...
-})
-.signers([adminKeypair]) // Administrator's partial signature
-.instruction();
-// Create a new transaction and add the instruction.
-let tx = new Transaction();
-tx.add(claimRewardsIx);
-// Get the recent blockhash.
-tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
-// Set the feePayer as userKeypair.publicKey.
-tx.feePayer = userKeypair.publicKey;
-// Serialize the transaction without requiring all signatures.
-const serializedTx = tx.serialize({
-requireAllSignatures: false,
-});
-const txBase64 = serializedTx.toString("base64");
-// Deserialize the transaction.
-const recoveredTx = Transaction.from(Buffer.from(txBase64, "base64"));
-// Sign the transaction with userKeypair.
-recoveredTx.partialSign(userKeypair);
-// The claimant sends the transaction.
-const txId = await provider.sendAndConfirm(recoveredTx, [userKeypair], { commitment: 'confirmed' });
-console.log("Rewards Claimed");
-console.log("Transaction ID:", txId);
-});
-```
-**Explanation of the example:**
+it("Claim Rewards After Unpausing (should succeed)", async () => {
+    // ... (keypair configuration, airdrops, etc.) ...
 
-1. **`claimRewardsIx`:** The instruction for claiming rewards is constructed.
-    *   **`rewardAmount`:** The amount of the reward to be claimed.
-    *   **`userKeypair.publicKey`:** The public key of the user claiming the reward.
-    *   **`nonce`:** A unique number to prevent replay attacks.
-    *   **`.signers([adminKeypair])`:** Specifies that the administrator (`adminKeypair`) will partially sign this instruction.
-2. **`tx`:** A new transaction is created and the `claimRewardsIx` instruction is added to it.
-3. **`tx.recentBlockhash`:** The recent `blockhash` is set for the transaction.
-4. **`tx.feePayer = userKeypair.publicKey;`:** The user claiming the reward (`userKeypair`) is set as the payer of the transaction fees.
-5. **Serialization and deserialization:** The transaction is serialized and then deserialized. This is an intermediate step that might be necessary in certain workflows, for example, when the transaction is signed at different times or by different entities.
-6. **`recoveredTx.partialSign(userKeypair);`:** The user signs the deserialized transaction.
-7. **`provider.sendAndConfirm`:** The transaction, now signed by both the administrator and the user, is sent to the network for confirmation.
+    // 1. Define the reward amount and nonce
+    const rewardAmount = new anchor.BN(100000000); // Example: 100 tokens
+    const nonce = new anchor.BN(12345); // Example: A unique nonce
 
-## Acknowledgments
+    // 2. Build the instruction to claim rewards
+    const ix = await program.methods
+      .claimRewards(rewardAmount, nonce)
+      .accounts({
+        userAdmin: adminKeypair.publicKey, // Admin's public key for partial signature
+        user: userKeypair.publicKey, // User's public key claiming the reward
+        tokenMint: mint, // Reward token mint address
+        nftMintAddress: nftMint, // NFT mint address
+        // ... other accounts (token_storage_authority, token_storage_account, user_token_account, admin_account, etc.) ...
+      })
+      .instruction();
 
--   [Solana](https://solana.com/)
--   [Anchor](https://project-serum.github.io/anchor/)
+    // 3. Create a new transaction and add the instruction
+    let tx = new anchor.web3.Transaction();
+    tx.add(ix);
+
+    // 4. Set the recent blockhash and fee payer
+    tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    tx.feePayer = userKeypair.publicKey; // User pays the transaction fees
+
+    // 5. Partially sign the transaction with the admin's keypair
+    tx.partialSign(adminKeypair);
+
+    // 6. Serialize the transaction without requiring all signatures
+    const serializedTx = tx.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+
+    // 7. Convert the serialized transaction to base64
+    const txBase64 = serializedTx.toString("base64");
+
+    // 8. Deserialize the transaction from base64
+    const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
+
+    // 9. Sign the transaction with the
