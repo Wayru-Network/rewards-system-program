@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Rewards System Program is a decentralized application built on the Solana blockchain that allows users to claim rewards based on their contributions and NFT ownership. This project utilizes the Anchor framework to simplify the development of Solana programs.
+The Rewards System Program is a decentralized application built on the Solana blockchain that allows users to claim rewards based on their contributions. This project utilizes the Anchor framework to simplify the development of Solana programs.
 
 The program enables administrators to set up a reward system, fund it with tokens, and pause/unpause reward claiming. Users can claim rewards once per day, and each claim requires a partial signature from an administrator for enhanced security. The user claiming the reward pays the transaction fees.
 
