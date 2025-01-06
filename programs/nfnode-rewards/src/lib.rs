@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::{ AssociatedToken },
-    token::{ self, Token, TokenAccount, Transfer, Mint },
+    token::{ self, Token, TokenAccount, Transfer, Mint }
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("AHYP9XbJ5HySC95V2gL65vHoiaQ9G3Y2af9bHoUyrE5E");
+declare_id!("3dnp4MCPPuegejPV4n8HTTauZui9BJhJGnMLoTo2Rbg9");
 
 #[program]
 pub mod reward_system {
@@ -157,7 +157,8 @@ pub struct ClaimRewards<'info> {
     pub user_admin: Signer<'info>,
     #[account(mut)]
     pub user: Signer<'info>,
-    pub nft_mint_address: Account<'info, Mint>,
+    /// CHECK:
+    pub nft_mint_address: AccountInfo<'info>,
     #[account(
         init_if_needed,
         payer = user,
