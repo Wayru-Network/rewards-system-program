@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::{ AssociatedToken },
-    token::{ self, Token, TokenAccount, Transfer, Mint }
+    token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
+    token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
 use solana_program::{ pubkey::Pubkey };
 
-declare_id!("3dnp4MCPPuegejPV4n8HTTauZui9BJhJGnMLoTo2Rbg9");
+declare_id!("AgaHAYCtdwgi3HikyXEYJP5VsXtRpouVZBxKFyKu8R4w");
 
 #[program]
 pub mod reward_system {
@@ -18,6 +19,7 @@ pub mod reward_system {
     }
 
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
+        msg!("admin_account_pubkey: {}", ctx.accounts.admin_account.key());
         let admin_account = &mut ctx.accounts.admin_account;
         require!(
             ctx.accounts.user.key() == admin_account.admin_pubkey,
@@ -36,7 +38,10 @@ pub mod reward_system {
 
     pub fn claim_rewards(ctx: Context<ClaimRewards>, reward_amount: u64, nonce: u64) -> Result<()> {
         let reward_entry = &mut ctx.accounts.reward_entry;
-        let admin_account = &mut ctx.accounts.admin_account;
+        let admin_account = &ctx.accounts.admin_account;
+        // msg!("admin_account_pubkey: {}", admin_account.key());
+        msg!("admin_pubkey: {}", admin_account.admin_pubkey);
+        msg!("admin_account.paused: {}", admin_account.paused);
         require!(!admin_account.paused, RewardError::ProgramPaused);
         require!(
             nonce > reward_entry.last_claimed_nonce ||
@@ -59,6 +64,26 @@ pub mod reward_system {
             .checked_div(86400)
             .ok_or(RewardError::ArithmeticOverflow)?;
         require!(current_day > last_claim_day, RewardError::ClaimAlreadyMadeToday);
+
+        let user_nft_token_account_info = &ctx.accounts.user_nft_token_account;
+
+        if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
+            return err!(RewardError::InvalidNftMint);
+        }
+
+        let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
+        let user_nft_token_account = SplToken2022Account::try_deserialize(
+            &mut &user_nft_token_account_data[..]
+        )?;
+
+        if user_nft_token_account.amount == 0 {
+            return err!(RewardError::InsufficientNftBalance);
+        }
+
+        if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
+            return err!(RewardError::InvalidNftMint);
+        }
+
         reward_entry.last_claimed_nonce = nonce;
         reward_entry.last_claimed_timestamp = current_timestamp;
 
@@ -87,6 +112,7 @@ pub mod reward_system {
             RewardError::UnauthorizedAdmin
         );
         admin_account.paused = true;
+        msg!("Program paused");
         Ok(())
     }
 
@@ -97,6 +123,7 @@ pub mod reward_system {
             RewardError::UnauthorizedAdmin
         );
         admin_account.paused = false;
+        msg!("Program unpaused");
         Ok(())
     }
 }
@@ -158,7 +185,7 @@ pub struct ClaimRewards<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     /// CHECK:
-    pub nft_mint_address: AccountInfo<'info>,
+    pub nft_mint_address: InterfaceAccount<'info, Mint2022>,
     #[account(
         init_if_needed,
         payer = user,
@@ -184,8 +211,12 @@ pub struct ClaimRewards<'info> {
         associated_token::authority = user
     )]
     pub user_token_account: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"admin_account"], bump)]
+    /// CHECK: used to check nft ownership
+    pub user_nft_token_account: AccountInfo<'info>,
+    // pub user_nft_token_account: InterfaceAccount<'info, SplToken2022Account>,
+    #[account(seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
+    pub token_program_2022: Interface<'info, TokenInterface>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -219,6 +250,10 @@ pub enum RewardError {
     ClaimAlreadyMadeToday,
     #[msg("Aricmetic overflow.")]
     ArithmeticOverflow,
+    #[msg("Invalid NFT mint.")]
+    InvalidNftMint,
+    #[msg("Insufficient NFT balance.")]
+    InsufficientNftBalance,
 }
 
 impl<'info> FundTokenStorage<'info> {
