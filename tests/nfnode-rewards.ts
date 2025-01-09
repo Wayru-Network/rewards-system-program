@@ -272,7 +272,7 @@ describe("nfnode-rewards", async () => {
 
     try {
       await program.methods
-        .claimRewards(rewardAmount, nonce)
+        .ownerClaimRewards(rewardAmount, nonce)
         .accounts({
           userAdmin: adminKeypair.publicKey,
           user: userKeypair.publicKey,
@@ -311,7 +311,7 @@ describe("nfnode-rewards", async () => {
     let claimError = null;
     try {
       const ix = await program.methods
-        .claimRewards(rewardAmount, nonce)
+        .ownerClaimRewards(rewardAmount, nonce)
         .accounts({
           userAdmin: adminKeypair.publicKey,
           user: userKeypair.publicKey,
@@ -381,7 +381,7 @@ describe("nfnode-rewards", async () => {
     const rewardAmount = new anchor.BN(100000000); // 100 tokens
     const nonce2 = new anchor.BN(32349); // Use a new nonce
     const ix2 = await program.methods
-      .claimRewards(rewardAmount, nonce2)
+      .ownerClaimRewards(rewardAmount, nonce2)
       .accounts({
         userAdmin: adminKeypair.publicKey,
         user: userKeypair.publicKey,
@@ -428,7 +428,7 @@ describe("nfnode-rewards", async () => {
       const latestBlockHash = await provider.connection.getLatestBlockhash();
 
       const ix = await program.methods
-        .claimRewards(rewardAmount, nonce)
+        .ownerClaimRewards(rewardAmount, nonce)
         .accounts({
           userAdmin: adminKeypair.publicKey,
           user: userKeypair.publicKey,
@@ -473,7 +473,7 @@ describe("nfnode-rewards", async () => {
 
       const latestBlockHash2 = await provider.connection.getLatestBlockhash();
       const ix2 = await program.methods
-        .claimRewards(rewardAmount, nonce2)
+        .ownerClaimRewards(rewardAmount, nonce2)
         .accounts({
           userAdmin: adminKeypair.publicKey,
           user: userKeypair.publicKey,
@@ -525,7 +525,7 @@ describe("nfnode-rewards", async () => {
       const latestBlockHash = await provider.connection.getLatestBlockhash();
 
       const ix = await program.methods
-        .claimRewards(rewardAmount, nonce)
+        .ownerClaimRewards(rewardAmount, nonce)
         .accounts({
           userAdmin: adminKeypair.publicKey,
           user: user2Keypair.publicKey,
