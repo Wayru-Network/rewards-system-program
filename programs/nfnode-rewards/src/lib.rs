@@ -19,15 +19,12 @@ pub mod reward_system {
     }
 
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
-        msg!("admin_account_pubkey: {}", ctx.accounts.admin_account.key());
         let admin_account = &mut ctx.accounts.admin_account;
         require!(
             ctx.accounts.user.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
         );
         admin_account.admin_pubkey = new_admin_pubkey;
-        msg!("admin_pubkey: {}", new_admin_pubkey);
-        msg!("user_admin pubkey: {}", ctx.accounts.user.key());
         Ok(())
     }
 
@@ -39,9 +36,6 @@ pub mod reward_system {
     pub fn claim_rewards(ctx: Context<ClaimRewards>, reward_amount: u64, nonce: u64) -> Result<()> {
         let reward_entry = &mut ctx.accounts.reward_entry;
         let admin_account = &ctx.accounts.admin_account;
-        // msg!("admin_account_pubkey: {}", admin_account.key());
-        msg!("admin_pubkey: {}", admin_account.admin_pubkey);
-        msg!("admin_account.paused: {}", admin_account.paused);
         require!(!admin_account.paused, RewardError::ProgramPaused);
         require!(
             nonce > reward_entry.last_claimed_nonce ||
@@ -112,7 +106,6 @@ pub mod reward_system {
             RewardError::UnauthorizedAdmin
         );
         admin_account.paused = true;
-        msg!("Program paused");
         Ok(())
     }
 
@@ -123,7 +116,6 @@ pub mod reward_system {
             RewardError::UnauthorizedAdmin
         );
         admin_account.paused = false;
-        msg!("Program unpaused");
         Ok(())
     }
 }
