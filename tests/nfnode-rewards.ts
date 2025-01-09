@@ -20,7 +20,6 @@ import * as dotenv from "dotenv"
 import { expect } from "chai";
 
 async function getKeypair(type: 'admin' | 'user' | 'user2') {
-  console.log('getting keypair')
   const secretKeyMap = {
     'admin': process.env.ADMIN_PRIVATE_KEY,
     'user': process.env.USER_PRIVATE_KEY,
@@ -399,8 +398,6 @@ describe("nfnode-rewards", async () => {
     tx2.feePayer = userKeypair.publicKey;
     tx2.partialSign(adminKeypair);
 
-    console.log('tx keys:', tx2.instructions[0].keys
-    )
     const serializedTx2 = tx2.serialize({
       requireAllSignatures: false,
       verifySignatures: false,
@@ -410,8 +407,6 @@ describe("nfnode-rewards", async () => {
     const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
     recoveredTx2.partialSign(userKeypair);
 
-    console.log('recoveredTx2 keys:', recoveredTx2.instructions[0].keys
-    )
     const connection = new Connection(process.env.SOLANA_API_URL);
     const serializedTxFinal2 = recoveredTx2.serialize({
       requireAllSignatures: true,
@@ -564,7 +559,7 @@ describe("nfnode-rewards", async () => {
       });
 
       const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
-    
+
     } catch (error) {
       console.log("Error nft:", error);
       claimError = error;
