@@ -545,7 +545,7 @@ describe("nfnode-rewards", async () => {
       let tx = new anchor.web3.Transaction();
       tx.add(ix);
       tx.recentBlockhash = latestBlockHash.blockhash; // Use the latest blockhash
-      tx.feePayer = userKeypair.publicKey;
+      tx.feePayer = user2Keypair.publicKey;
       tx.partialSign(adminKeypair);
 
       const serializedTx = tx.serialize({
@@ -564,57 +564,14 @@ describe("nfnode-rewards", async () => {
       });
 
       const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
-      console.log("First Reward Claimed Successfully");
-      console.log("Transaction ID:", txId);
-
-      // Add a delay of 5 seconds after the transaction is confirmed
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Attempt to claim rewards for the second time (should fail)
-      const nonce2 = new anchor.BN(32351); // Use a new nonce
-
-      const latestBlockHash2 = await provider.connection.getLatestBlockhash();
-      const ix2 = await program.methods
-        .claimRewards(rewardAmount, nonce2)
-        .accounts({
-          userAdmin: adminKeypair.publicKey,
-          user: user2Keypair.publicKey,
-          tokenMint: mint,
-          nftMintAddress: nftMint,
-          tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: userNFTTokenAccount
-        })
-        .instruction();
-
-      let tx2 = new anchor.web3.Transaction();
-      tx2.add(ix2);
-      tx2.recentBlockhash = latestBlockHash2.blockhash;
-      tx2.feePayer = userKeypair.publicKey;
-      tx2.partialSign(adminKeypair);
-
-      const serializedTx2 = tx2.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-      });
-
-      const txBase642 = serializedTx2.toString("base64");
-      const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
-      recoveredTx2.partialSign(user2Keypair);
-
-      const connection2 = new Connection(process.env.SOLANA_API_URL);
-      const serializedTxFinal2 = recoveredTx2.serialize({
-        requireAllSignatures: true,
-        verifySignatures: true,
-      });
-
-      await anchor.web3.sendAndConfirmRawTransaction(connection2, serializedTxFinal2, { commitment: 'confirmed' });
+    
     } catch (error) {
-      console.log("Error:", error);
+      console.log("Error nft:", error);
       claimError = error;
     }
 
     expect(claimError).to.not.be.null;
-    // expect(claimError.message).to.include("Claim already made today.");
+    expect(claimError.message).to.include("Insufficient NFT balance.");
   });
 
 });
