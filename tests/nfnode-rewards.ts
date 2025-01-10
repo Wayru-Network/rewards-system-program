@@ -213,7 +213,6 @@ describe("nfnode-rewards", async () => {
       program.programId
     );
     tokenStoragePDA = _tokenStoragePDA;
-    console.log('token storage pda:', tokenStoragePDA)
     const [_adminAccountPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("admin_account")],
       program.programId
@@ -226,12 +225,7 @@ describe("nfnode-rewards", async () => {
     );
     nfnodeEntryPDA = _nfnodeEntryPDA;
     nfnodeEntryPDA = _nfnodeEntryPDA;
-    console.log('nfnode entry pda:', nfnodeEntryPDA)
-    console.log('adminaccount pda:', adminAccountPDA)
-    console.log('user acount:', userKeypair.publicKey)
-    console.log('usernfttoken acount:', userNFTTokenAccount.toBase58())
     const userNftTokenAccountInfo = await provider.connection.getAccountInfo(userNFTTokenAccount);
-    console.log('userNftTokenAccountInfo:', userNftTokenAccountInfo)
     if (userNftTokenAccountInfo === null) {
       throw new Error("userNftTokenAccount not found");
     }
@@ -275,7 +269,6 @@ describe("nfnode-rewards", async () => {
         const nfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
         nfnodeData = nfnodeState.host.toBase58().length > 0;
       } catch (error) {
-        console.log('get nfnode entry info error:', error)
         await new Promise(resolve => setTimeout(resolve, 10000));
         times++;
       }
@@ -311,8 +304,6 @@ describe("nfnode-rewards", async () => {
 
     // Fetch the updated nfnode_entry
     const updatedNfNodeEntry = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA);
-    console.log('host:', updatedNfNodeEntry.host.toBase58(), '==', user2Keypair.publicKey.toBase58())
-    console.log('host_share:', updatedNfNodeEntry.hostShare)
     // Assert that the host and host_share have been updated
     expect((updatedNfNodeEntry.host.toBase58() == user2Keypair.publicKey.toBase58())).to.be.true;
     expect(updatedNfNodeEntry.hostShare.toNumber() == 50).to.be.true;
@@ -414,7 +405,6 @@ describe("nfnode-rewards", async () => {
 
       await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
     } catch (error) {
-      console.log("Error while paused:", error);
       claimError = error;
     }
 
@@ -483,7 +473,6 @@ describe("nfnode-rewards", async () => {
       const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
 
     } catch (error) {
-      console.log("Error nft:", error);
       claimError = error;
     }
 
@@ -497,10 +486,7 @@ describe("nfnode-rewards", async () => {
       console.log("Program is paused. Waiting for it to be unpaused...");
       const programState = await program.account.adminAccount.fetch(adminAccountPDA, 'finalized');
       const pnfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
-      console.log(programState);
-      console.log('adminpkey:', adminKeypair.publicKey)
       paused = programState.paused;
-      console.log("Paused:", paused);
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before checking again
       times++;
     }
@@ -534,6 +520,55 @@ describe("nfnode-rewards", async () => {
     const txBase642 = serializedTx2.toString("base64");
     const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
     recoveredTx2.partialSign(userKeypair);
+
+    const connection = new Connection(process.env.SOLANA_API_URL);
+    const serializedTxFinal2 = recoveredTx2.serialize({
+      requireAllSignatures: true,
+      verifySignatures: true,
+    });
+
+    const txId2 = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal2, { commitment: 'confirmed' });
+    console.log("Rewards Claimed Successfully After Unpausing");
+    console.log("Transaction ID:", txId2);
+  });
+  it("should allow host to claim rewards", async () => {
+    let paused = true;
+    let times = 0;
+    while (paused && times < 10) {
+      console.log("Program is paused. Waiting for it to be unpaused...");
+      const programState = await program.account.adminAccount.fetch(adminAccountPDA, 'finalized');
+      const pnfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
+      paused = programState.paused;
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before checking again
+      times++;
+    }
+    // Claim rewards after unpausing wiht host user (should succeed)
+    const rewardAmount = new anchor.BN(100000000); // 100 tokens
+    const nonce2 = new anchor.BN(32355); // Use a new nonce
+    const ix2 = await program.methods
+      .othersClaimRewards(rewardAmount, nonce2)
+      .accounts({
+        userAdmin: adminKeypair.publicKey,
+        user: user2Keypair.publicKey,
+        tokenMint: mint,
+        nftMintAddress: nftMint,
+      })
+      .instruction();
+
+    let tx2 = new anchor.web3.Transaction();
+    tx2.add(ix2);
+    tx2.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+    tx2.feePayer = user2Keypair.publicKey;
+    tx2.partialSign(adminKeypair);
+
+    const serializedTx2 = tx2.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
+
+    const txBase642 = serializedTx2.toString("base64");
+    const recoveredTx2 = anchor.web3.Transaction.from(Buffer.from(txBase642, "base64"));
+    recoveredTx2.partialSign(user2Keypair);
 
     const connection = new Connection(process.env.SOLANA_API_URL);
     const serializedTxFinal2 = recoveredTx2.serialize({
@@ -637,7 +672,6 @@ describe("nfnode-rewards", async () => {
 
       await anchor.web3.sendAndConfirmRawTransaction(connection2, serializedTxFinal2, { commitment: 'confirmed' });
     } catch (error) {
-      console.log("Error twice:", error);
       claimError = error;
     }
 

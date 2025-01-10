@@ -33,19 +33,31 @@ pub fn others_claim_rewards(
     let last_claim_day_reward_entry = reward_entry.last_claimed_timestamp
         .checked_div(86400)
         .ok_or(RewardError::ArithmeticOverflow)?;
-    let owner_last_claim_day_nfnode_entry = nfnode_entry.owner_last_claimed_timestamp
+    let host_last_claim_day_nfnode_entry = nfnode_entry.host_last_claimed_timestamp
+        .checked_div(86400)
+        .ok_or(RewardError::ArithmeticOverflow)?;
+    let manufacturer_last_claim_day_nfnode_entry = nfnode_entry.manufacturer_last_claimed_timestamp
         .checked_div(86400)
         .ok_or(RewardError::ArithmeticOverflow)?;
     let current_day = current_timestamp.checked_div(86400).ok_or(RewardError::ArithmeticOverflow)?;
     require!(
-        current_day > last_claim_day_reward_entry &&
-            current_day > owner_last_claim_day_nfnode_entry,
+        (current_day > last_claim_day_reward_entry &&
+            current_day > host_last_claim_day_nfnode_entry) ||
+            (current_day > last_claim_day_reward_entry &&
+                current_day > manufacturer_last_claim_day_nfnode_entry),
         RewardError::ClaimAlreadyMadeToday
     );
 
     reward_entry.last_claimed_nonce = nonce;
     reward_entry.last_claimed_timestamp = current_timestamp;
-    nfnode_entry.owner_last_claimed_timestamp = current_timestamp;
+    //verify if host or manufacturer
+    if ctx.accounts.user.key() == nfnode_entry.host {
+        nfnode_entry.host_last_claimed_timestamp = current_timestamp;
+    } else if ctx.accounts.user.key() == nfnode_entry.manufacturer {
+        nfnode_entry.manufacturer_last_claimed_timestamp = current_timestamp;
+    } else {
+        return Err(RewardError::UnauthorizedUser.into());
+    }
     nfnode_entry.total_rewards_claimed += reward_amount;
 
     let authority_bump = ctx.bumps.token_storage_authority;

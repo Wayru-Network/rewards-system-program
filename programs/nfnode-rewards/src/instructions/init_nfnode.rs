@@ -33,9 +33,9 @@ pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Res
     nfnode_entry.host_share = host_share;
     nfnode_entry.manufacturer = ctx.accounts.manufacturer.key();
     let current_timestamp = Clock::get()?.unix_timestamp; // if we use current timestamp rewards can be claimed after 24 hours
-    nfnode_entry.owner_last_claimed_timestamp = 0; //current_timestamp;
-    nfnode_entry.host_last_claimed_timestamp = current_timestamp;
-    nfnode_entry.manufacturer_last_claimed_timestamp = current_timestamp;
+    nfnode_entry.owner_last_claimed_timestamp = 0; //current_timestamp; //change in production
+    nfnode_entry.host_last_claimed_timestamp = 0;//current_timestamp;
+    nfnode_entry.manufacturer_last_claimed_timestamp = 0;//current_timestamp;
     nfnode_entry.total_rewards_claimed = 0;
     Ok(())
 }
