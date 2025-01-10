@@ -285,7 +285,7 @@ describe("nfnode-rewards", async () => {
       .signers([adminKeypair])
       .rpc();
   });
-  it("should update nfnode entry", async () => {
+  it("Should update nfnode entry", async () => {
 
 
     // Update nfnode_entry
@@ -425,7 +425,7 @@ describe("nfnode-rewards", async () => {
     const programState = await program.account.adminAccount.fetch(adminAccountPDA, 'finalized');
     expect(programState.paused).to.be.false;
   });
-  it("Attempt to Claim Rewards With no nft", async () => {
+  it("Attempt to Claim Rewards With no nft (should fail)", async () => {
     let claimError = null;
     try {
       // Claim rewards for the first time (should succeed)
@@ -531,7 +531,7 @@ describe("nfnode-rewards", async () => {
     console.log("Rewards Claimed Successfully After Unpausing");
     console.log("Transaction ID:", txId2);
   });
-  it("should allow host to claim rewards", async () => {
+  it("Should allow host to claim rewards", async () => {
     let paused = true;
     let times = 0;
     while (paused && times < 10) {
