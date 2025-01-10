@@ -2,11 +2,11 @@ use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::{ AssociatedToken },
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
-    token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
+    token_interface::{ Mint as Mint2022 },
 };
 use crate::{ errors::RewardError, state::{ RewardEntry, NfNodeEntry, AdminAccount } };
 pub fn others_claim_rewards(
-    ctx: Context<OwnerClaimRewards>,
+    ctx: Context<OthersClaimRewards>,
     reward_amount: u64,
     nonce: u64
 ) -> Result<()> {
@@ -67,7 +67,7 @@ pub fn others_claim_rewards(
     Ok(())
 }
 #[derive(Accounts)]
-pub struct OwnerClaimRewards<'info> {
+pub struct OthersClaimRewards<'info> {
     /// CHECK:
     #[account(mut)]
     pub user_admin: Signer<'info>,

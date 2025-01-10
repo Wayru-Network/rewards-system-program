@@ -42,6 +42,13 @@ pub mod reward_system {
     ) -> Result<()> {
         instructions::owner_claim_rewards(ctx, reward_amount, nonce)
     }
+    pub fn others_claim_rewards(
+        ctx: Context<OthersClaimRewards>,
+        reward_amount: u64,
+        nonce: u64
+    ) -> Result<()> {
+        instructions::others_claim_rewards(ctx, reward_amount, nonce)
+    }
     pub fn pause_program(ctx: Context<UpdateAdmin>) -> Result<()> {
         let admin_account = &mut ctx.accounts.admin_account;
         require!(
