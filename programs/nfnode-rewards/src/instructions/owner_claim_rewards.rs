@@ -4,14 +4,15 @@ use anchor_spl::{
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
     token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
-use crate::{ errors::RewardError, state::{ AdminAccount, RewardEntry } };
-
+use crate::{ errors::RewardError, state::{ RewardEntry, NfNodeEntry, AdminAccount } };
 pub fn owner_claim_rewards(
     ctx: Context<OwnerClaimRewards>,
     reward_amount: u64,
     nonce: u64
 ) -> Result<()> {
     let reward_entry = &mut ctx.accounts.reward_entry;
+    let nfnode_entry = &mut ctx.accounts.nfnode_entry;
+
     let admin_account = &ctx.accounts.admin_account;
     require!(!admin_account.paused, RewardError::ProgramPaused);
     require!(
@@ -28,11 +29,19 @@ pub fn owner_claim_rewards(
     let is_partially_signed_by_admin = user_admin_account_info.is_signer;
     require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
     let current_timestamp = Clock::get()?.unix_timestamp;
-    let last_claim_day = reward_entry.last_claimed_timestamp
+    msg!("Current timestamp: {}", current_timestamp);
+    let last_claim_day_reward_entry = reward_entry.last_claimed_timestamp
+        .checked_div(86400)
+        .ok_or(RewardError::ArithmeticOverflow)?;
+    let owner_last_claim_day_nfnode_entry = nfnode_entry.owner_last_claimed_timestamp
         .checked_div(86400)
         .ok_or(RewardError::ArithmeticOverflow)?;
     let current_day = current_timestamp.checked_div(86400).ok_or(RewardError::ArithmeticOverflow)?;
-    require!(current_day > last_claim_day, RewardError::ClaimAlreadyMadeToday);
+    require!(
+        current_day > last_claim_day_reward_entry &&
+            current_day > owner_last_claim_day_nfnode_entry,
+        RewardError::ClaimAlreadyMadeToday
+    );
 
     let user_nft_token_account_info = &ctx.accounts.user_nft_token_account;
 
@@ -55,6 +64,8 @@ pub fn owner_claim_rewards(
 
     reward_entry.last_claimed_nonce = nonce;
     reward_entry.last_claimed_timestamp = current_timestamp;
+    nfnode_entry.owner_last_claimed_timestamp = current_timestamp;
+    nfnode_entry.total_rewards_claimed += reward_amount;
 
     let authority_bump = ctx.bumps.token_storage_authority;
     let authority_seeds = &[&b"token_storage"[..], &[authority_bump]];
@@ -91,6 +102,12 @@ pub struct OwnerClaimRewards<'info> {
         bump
     )]
     pub reward_entry: Account<'info, RewardEntry>,
+    #[account(
+        mut,
+        seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()],
+        bump
+    )]
+    pub nfnode_entry: Box<Account<'info, NfNodeEntry>>,
     pub token_mint: Account<'info, Mint>,
     /// CHECK:
     #[account(mut, seeds = [b"token_storage"], bump)]
@@ -100,14 +117,14 @@ pub struct OwnerClaimRewards<'info> {
         associated_token::mint = token_mint,
         associated_token::authority = token_storage_authority,
     )]
-    pub token_storage_account: Account<'info, TokenAccount>,
+    pub token_storage_account: Box<Account<'info, TokenAccount>>,
     #[account(
         init_if_needed,
         payer = user,
         associated_token::mint = token_mint,
         associated_token::authority = user
     )]
-    pub user_token_account: Account<'info, TokenAccount>,
+    pub user_token_account: Box<Account<'info, TokenAccount>>,
     /// CHECK: used to check nft ownership
     pub user_nft_token_account: AccountInfo<'info>,
     // pub user_nft_token_account: InterfaceAccount<'info, SplToken2022Account>,

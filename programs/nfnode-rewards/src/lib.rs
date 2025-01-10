@@ -2,14 +2,13 @@ use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::{ AssociatedToken },
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
-    token_interface::{ Mint as Mint2022 },
 };
 use solana_program::{ pubkey::Pubkey };
 mod errors;
 mod instructions;
 mod state;
-use crate::{ errors::*, state::* };
-declare_id!("HmXL1JP58PPUSpvNM4ettWKfBCBWaw5kMgycaiZrjg3P");
+use crate::{ errors::* };
+declare_id!("GVHQiftWevyQTRy4qjTKBwSGZ5UggGD55Mv8RKtXK4fB");
 
 #[program]
 pub mod reward_system {
@@ -22,6 +21,13 @@ pub mod reward_system {
 
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
         instructions::update_admin(ctx, new_admin_pubkey)
+    }
+
+    pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Result<()> {
+        instructions::initialize_nfnode(ctx, host_share)
+    }
+    pub fn update_nfnode(ctx: Context<UpdateNfNode>, host_share: u64) -> Result<()> {
+        instructions::update_nfnode(ctx, host_share)
     }
 
     pub fn fund_token_storage(ctx: Context<FundTokenStorage>, amount: u64) -> Result<()> {
@@ -55,22 +61,6 @@ pub mod reward_system {
         admin_account.paused = false;
         Ok(())
     }
-}
-
-#[derive(Accounts)]
-pub struct InitializeNfNOde<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
-    pub nft_mint_address: InterfaceAccount<'info, Mint2022>,
-    #[account(
-        init,
-        payer = user,
-        space = 8 + std::mem::size_of::<NfNodeEntry>(),
-        seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()],
-        bump
-    )]
-    pub admin_account: Account<'info, AdminAccount>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

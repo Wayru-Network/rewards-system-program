@@ -20,4 +20,6 @@ pub enum RewardError {
     InvalidNftMint,
     #[msg("Insufficient NFT balance.")]
     InsufficientNftBalance,
+    #[msg("Invalid Nfnode entry.")]
+    InvalidNfNodeEntry,
 }

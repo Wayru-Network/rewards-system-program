@@ -100,6 +100,7 @@ describe("nfnode-rewards", async () => {
   let user2NFTTokenAccount: PublicKey;
   let tokenStoragePDA: PublicKey;
   let adminAccountPDA: PublicKey;
+  let nfnodeEntryPDA: PublicKey;
   before(async () => {
     // SOL airdrop for accounts
     await Promise.all([
@@ -218,6 +219,14 @@ describe("nfnode-rewards", async () => {
       program.programId
     );
     adminAccountPDA = _adminAccountPDA;
+
+    const [_nfnodeEntryPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("nfnode_entry"), nftMint.toBuffer()],
+      program.programId
+    );
+    nfnodeEntryPDA = _nfnodeEntryPDA;
+    nfnodeEntryPDA = _nfnodeEntryPDA;
+    console.log('nfnode entry pda:', nfnodeEntryPDA)
     console.log('adminaccount pda:', adminAccountPDA)
     console.log('user acount:', userKeypair.publicKey)
     console.log('usernfttoken acount:', userNFTTokenAccount.toBase58())
@@ -238,6 +247,40 @@ describe("nfnode-rewards", async () => {
       })
       .signers([adminKeypair])
       .rpc();
+
+
+  });
+  it("Initialize Nfnode", async () => {
+    // Initialize reward system
+    await program.methods
+      .initializeNfnode(new anchor.BN(0))
+      .accounts({
+        userAdmin: adminKeypair.publicKey,
+        user: userKeypair.publicKey,
+        nftMintAddress: nftMint,
+        host: userKeypair.publicKey,
+        manufacturer: user2Keypair.publicKey,
+        tokenProgram2022: TOKEN_2022_PROGRAM_ID,
+        userNftTokenAccount: userNFTTokenAccount
+      })
+      .signers([adminKeypair, userKeypair])//TODO: conver in partial sign
+      .rpc({ commitment: 'confirmed' });
+    console.log('initialize nfnode success')
+    // Add a delay of 5 seconds after the transaction is confirmed
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    let nfnodeData = false
+    let times = 0;
+    while (!nfnodeData && times < 10) {
+      try {
+        const nfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
+        nfnodeData = Number(nfnodeState.ownerLastClaimedTimestamp) > 0
+      } catch (error) {
+        console.log('get nfnode entry info error:', error)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        times++;
+      }
+    }
+    expect(nfnodeData).to.be.true;
   });
   it("Update admin", async () => {
     // Initialize reward system
@@ -279,7 +322,8 @@ describe("nfnode-rewards", async () => {
           nftMintAddress: nftMint,
           tokenMint: mint,
           tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: userNFTTokenAccount
+          userNftTokenAccount: userNFTTokenAccount,
+          // nfnodeEntry: nfnodeEntryPDA
         })
         .signers([userKeypair])
         .rpc();
@@ -318,7 +362,8 @@ describe("nfnode-rewards", async () => {
           tokenMint: mint,
           nftMintAddress: nftMint,
           tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: userNFTTokenAccount
+          userNftTokenAccount: userNFTTokenAccount,
+          // nfnodeEntry: nfnodeEntryPDA
         })
         .instruction();
 
@@ -344,7 +389,7 @@ describe("nfnode-rewards", async () => {
 
       await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
     } catch (error) {
-      console.log("Error:", error);
+      console.log("Error while paused:", error);
       claimError = error;
     }
 
@@ -365,17 +410,74 @@ describe("nfnode-rewards", async () => {
     const programState = await program.account.adminAccount.fetch(adminAccountPDA, 'finalized');
     expect(programState.paused).to.be.false;
   });
+  it("Attempt to Claim Rewards With no nft", async () => {
+    let claimError = null;
+    try {
+      // Claim rewards for the first time (should succeed)
+      const rewardAmount = new anchor.BN(100000000); // 100 tokens
+      const nonce = new anchor.BN(32350); // Use a new nonce
 
+      // Get the latest blockhash before each transaction
+      const latestBlockHash = await provider.connection.getLatestBlockhash();
+
+      const ix = await program.methods
+        .ownerClaimRewards(rewardAmount, nonce)
+        .accounts({
+          userAdmin: adminKeypair.publicKey,
+          user: user2Keypair.publicKey,
+          tokenMint: mint,
+          nftMintAddress: nftMint,
+          tokenProgram2022: TOKEN_2022_PROGRAM_ID,
+          userNftTokenAccount: user2NFTTokenAccount,
+          // nfnodeEntry: nfnodeEntryPDA
+
+        })
+        .instruction();
+
+      let tx = new anchor.web3.Transaction();
+      tx.add(ix);
+      tx.recentBlockhash = latestBlockHash.blockhash; // Use the latest blockhash
+      tx.feePayer = user2Keypair.publicKey;
+      tx.partialSign(adminKeypair);
+
+      const serializedTx = tx.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+      });
+
+      const txBase64 = serializedTx.toString("base64");
+      const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
+      recoveredTx.partialSign(user2Keypair);
+
+      const connection = new Connection(process.env.SOLANA_API_URL);
+      const serializedTxFinal = recoveredTx.serialize({
+        requireAllSignatures: true,
+        verifySignatures: true,
+      });
+
+      const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
+
+    } catch (error) {
+      console.log("Error nft:", error);
+      claimError = error;
+    }
+
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Insufficient NFT balance.");
+  });
   it("Claim Rewards After Unpausing (should succeed)", async () => {
     let paused = true;
-    while (paused) {
+    let times = 0;
+    while (paused && times < 10) {
       console.log("Program is paused. Waiting for it to be unpaused...");
       const programState = await program.account.adminAccount.fetch(adminAccountPDA, 'finalized');
+      const pnfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
       console.log(programState);
       console.log('adminpkey:', adminKeypair.publicKey)
       paused = programState.paused;
       console.log("Paused:", paused);
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before checking again
+      times++;
     }
     // Claim rewards after unpausing (should succeed)
     const rewardAmount = new anchor.BN(100000000); // 100 tokens
@@ -388,7 +490,8 @@ describe("nfnode-rewards", async () => {
         tokenMint: mint,
         nftMintAddress: nftMint,
         tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-        userNftTokenAccount: userNFTTokenAccount
+        userNftTokenAccount: userNFTTokenAccount,
+        // nfnodeEntry: nfnodeEntryPDA
       })
       .instruction();
 
@@ -435,7 +538,8 @@ describe("nfnode-rewards", async () => {
           tokenMint: mint,
           nftMintAddress: nftMint,
           tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: userNFTTokenAccount
+          userNftTokenAccount: userNFTTokenAccount,
+          // nfnodeEntry: nfnodeEntryPDA
 
         })
         .instruction();
@@ -480,7 +584,8 @@ describe("nfnode-rewards", async () => {
           tokenMint: mint,
           nftMintAddress: nftMint,
           tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: userNFTTokenAccount
+          userNftTokenAccount: userNFTTokenAccount,
+          // nfnodeEntry: nfnodeEntryPDA
         })
         .instruction();
 
@@ -507,67 +612,14 @@ describe("nfnode-rewards", async () => {
 
       await anchor.web3.sendAndConfirmRawTransaction(connection2, serializedTxFinal2, { commitment: 'confirmed' });
     } catch (error) {
-      console.log("Error:", error);
+      console.log("Error twice:", error);
       claimError = error;
     }
 
     expect(claimError).to.not.be.null;
     expect(claimError.message).to.include("Claim already made today.");
   });
-  it("Attempt to Claim Rewards With no nft", async () => {
-    let claimError = null;
-    try {
-      // Claim rewards for the first time (should succeed)
-      const rewardAmount = new anchor.BN(100000000); // 100 tokens
-      const nonce = new anchor.BN(32350); // Use a new nonce
 
-      // Get the latest blockhash before each transaction
-      const latestBlockHash = await provider.connection.getLatestBlockhash();
-
-      const ix = await program.methods
-        .ownerClaimRewards(rewardAmount, nonce)
-        .accounts({
-          userAdmin: adminKeypair.publicKey,
-          user: user2Keypair.publicKey,
-          tokenMint: mint,
-          nftMintAddress: nftMint,
-          tokenProgram2022: TOKEN_2022_PROGRAM_ID,
-          userNftTokenAccount: user2NFTTokenAccount
-
-        })
-        .instruction();
-
-      let tx = new anchor.web3.Transaction();
-      tx.add(ix);
-      tx.recentBlockhash = latestBlockHash.blockhash; // Use the latest blockhash
-      tx.feePayer = user2Keypair.publicKey;
-      tx.partialSign(adminKeypair);
-
-      const serializedTx = tx.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false,
-      });
-
-      const txBase64 = serializedTx.toString("base64");
-      const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
-      recoveredTx.partialSign(user2Keypair);
-
-      const connection = new Connection(process.env.SOLANA_API_URL);
-      const serializedTxFinal = recoveredTx.serialize({
-        requireAllSignatures: true,
-        verifySignatures: true,
-      });
-
-      const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
-
-    } catch (error) {
-      console.log("Error nft:", error);
-      claimError = error;
-    }
-
-    expect(claimError).to.not.be.null;
-    expect(claimError.message).to.include("Insufficient NFT balance.");
-  });
 
 });
 
