@@ -8,7 +8,7 @@ mod errors;
 mod instructions;
 mod state;
 use crate::{ errors::* };
-declare_id!("ArUWpLUZ1uCpCQUPwaKtqxJWEKPF8Q7UavS6pvhFwbpE");
+declare_id!("GApqVG7NC1WdiEtJce8JBCdv5R5ZK5izCWM181CcrAtD");
 
 #[program]
 pub mod reward_system {

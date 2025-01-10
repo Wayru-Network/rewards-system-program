@@ -47,13 +47,7 @@ pub struct UpdateNfNode<'info> {
     pub nft_mint_address: InterfaceAccount<'info, Mint2022>,
     /// CHECK: used to check nft ownership
     pub user_nft_token_account: AccountInfo<'info>,
-    #[account(
-        init,
-        payer = user,
-        space = 8 + std::mem::size_of::<NfNodeEntry>(),
-        seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()],
-        bump
-    )]
+    #[account(mut,seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()], bump)]
     pub nfnode_entry: Account<'info, NfNodeEntry>,
     #[account(seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,

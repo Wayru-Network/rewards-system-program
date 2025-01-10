@@ -42,7 +42,7 @@ async function airdropSolIfNeeded(
   // if (balance < web3.LAMPORTS_PER_SOL) {
   if (balance < 10000) {
 
-    console.log("Airdropping 1 SOL...")
+    console.log("Airdropping 5 SOL...")
     const airdropSignature = await connection.requestAirdrop(
       signer.publicKey,
       5 * LAMPORTS_PER_SOL
@@ -273,10 +273,10 @@ describe("nfnode-rewards", async () => {
     while (!nfnodeData && times < 10) {
       try {
         const nfnodeState = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA, 'finalized');
-        nfnodeData = Number(nfnodeState.ownerLastClaimedTimestamp) > 0
+        nfnodeData = nfnodeState.host.toBase58().length > 0;
       } catch (error) {
         console.log('get nfnode entry info error:', error)
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 10000));
         times++;
       }
     }
@@ -293,11 +293,11 @@ describe("nfnode-rewards", async () => {
       .rpc();
   });
   it("should update nfnode entry", async () => {
-    
+
 
     // Update nfnode_entry
     await program.methods
-      .updateNfnode(new anchor.BN(50)) 
+      .updateNfnode(new anchor.BN(50))
       .accounts({
         userAdmin: adminKeypair.publicKey,
         user: userKeypair.publicKey,
@@ -310,11 +310,12 @@ describe("nfnode-rewards", async () => {
       .rpc();
 
     // Fetch the updated nfnode_entry
-    const updatedNfNodeEntry = await program.account.nfNodeEntry.fetch(nfnodeEntry);
-
+    const updatedNfNodeEntry = await program.account.nfNodeEntry.fetch(nfnodeEntryPDA);
+    console.log('host:', updatedNfNodeEntry.host.toBase58(), '==', user2Keypair.publicKey.toBase58())
+    console.log('host_share:', updatedNfNodeEntry.hostShare)
     // Assert that the host and host_share have been updated
-    assert.equal(updatedNfNodeEntry.host.toString(), host.publicKey.toString());
-    assert.equal(updatedNfNodeEntry.hostShare.toNumber(), 50); // Verifica el valor de host_share
+    expect((updatedNfNodeEntry.host.toBase58() == user2Keypair.publicKey.toBase58())).to.be.true;
+    expect(updatedNfNodeEntry.hostShare.toNumber() == 50).to.be.true;
   });
 
   it("Fund Token Storage", async () => {
