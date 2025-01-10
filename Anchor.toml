@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-reward_system = "GVHQiftWevyQTRy4qjTKBwSGZ5UggGD55Mv8RKtXK4fB"
+reward_system = "ArUWpLUZ1uCpCQUPwaKtqxJWEKPF8Q7UavS6pvhFwbpE"
 
 [registry]
 url = "https://api.apr.dev"

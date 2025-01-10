@@ -292,6 +292,30 @@ describe("nfnode-rewards", async () => {
       .signers([adminKeypair])
       .rpc();
   });
+  it("should update nfnode entry", async () => {
+    
+
+    // Update nfnode_entry
+    await program.methods
+      .updateNfnode(new anchor.BN(50)) 
+      .accounts({
+        userAdmin: adminKeypair.publicKey,
+        user: userKeypair.publicKey,
+        host: user2Keypair.publicKey,
+        nftMintAddress: nftMint,
+        userNftTokenAccount: userNFTTokenAccount, //
+        tokenProgram2022: TOKEN_2022_PROGRAM_ID, // 
+      })
+      .signers([adminKeypair, userKeypair])
+      .rpc();
+
+    // Fetch the updated nfnode_entry
+    const updatedNfNodeEntry = await program.account.nfNodeEntry.fetch(nfnodeEntry);
+
+    // Assert that the host and host_share have been updated
+    assert.equal(updatedNfNodeEntry.host.toString(), host.publicKey.toString());
+    assert.equal(updatedNfNodeEntry.hostShare.toNumber(), 50); // Verifica el valor de host_share
+  });
 
   it("Fund Token Storage", async () => {
     // Fund token storage
