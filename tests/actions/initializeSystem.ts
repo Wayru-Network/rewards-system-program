@@ -1,16 +1,18 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import { Program, ProgramAccount } from "@coral-xyz/anchor";
 import { RewardSystem } from "../../target/types/reward_system";
-import { Keypair } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
 
 export async function initializeSystem(
   program: Program<RewardSystem>,
   adminKeypair: Keypair
 ) {
+  const programDataAddress = new PublicKey("WsTkYfmSv6CduSSZihYtwP61347ENtyaizgusKG2hLL")//changes on diferents programID and deployments 
   await program.methods
     .initializeSystem()
     .accounts({
       user: adminKeypair.publicKey,
+      programData: programDataAddress
     })
     .signers([adminKeypair])
     .rpc();

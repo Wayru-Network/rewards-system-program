@@ -4,14 +4,16 @@ import { RewardSystem } from "../../target/types/reward_system";
 import { Keypair } from "@solana/web3.js";
 
 export async function updateAdmin(
+  
   program: Program<RewardSystem>,
-  adminKeypair: Keypair
+  adminKeypair: Keypair,
+  deployerKeypair: Keypair
 ) {
   await program.methods
     .updateAdmin(adminKeypair.publicKey)
     .accounts({
-      user: adminKeypair.publicKey,
+      user: deployerKeypair.publicKey,
     })
-    .signers([adminKeypair])
-    .rpc();
+    .signers([deployerKeypair])
+    .rpc({commitment:'finalized'});
 }

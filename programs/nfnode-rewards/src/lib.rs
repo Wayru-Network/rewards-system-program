@@ -8,7 +8,7 @@ mod errors;
 mod instructions;
 mod state;
 use crate::{ errors::* };
-declare_id!("EqDpek5j4p6iDY16gGhgLof3dgWYykTnmi7J3oau6dSh");
+declare_id!("F4wRMH82x4ZJmYqpAeMX8sb6nCsfpLcJEsqLSX3VV951");
 
 #[program]
 pub mod reward_system {
@@ -67,6 +67,16 @@ pub mod reward_system {
         );
         admin_account.paused = false;
         Ok(())
+    }
+}
+pub struct NfnodeRewards;
+
+impl NfnodeRewards {}
+
+// Implement the Id trait for NfnodeRewards
+impl anchor_lang::Id for NfnodeRewards {
+    fn id() -> Pubkey {
+        crate::ID
     }
 }
 

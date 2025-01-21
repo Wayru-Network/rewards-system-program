@@ -20,6 +20,7 @@ export async function setupTests(
   const adminKeypair = await getKeypair("admin");
   const userKeypair = await getKeypair("user");
   const user2Keypair = await getKeypair("user2");
+  const deployerKeypair = await getKeypair("deployer");
 
   // SOL airdrop for accounts
   await Promise.all([
@@ -166,5 +167,6 @@ export async function setupTests(
     tokenStoragePDA,
     adminAccountPDA,
     nfnodeEntryPDA,
+    deployerKeypair
   };
 }

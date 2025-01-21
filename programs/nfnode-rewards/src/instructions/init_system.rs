@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{state::AdminAccount};
+use crate::{ state::AdminAccount, NfnodeRewards };
 
 pub fn initialize_system(ctx: Context<InitializeSystem>) -> Result<()> {
     let admin_account = &mut ctx.accounts.admin_account;
@@ -21,5 +21,9 @@ pub struct InitializeSystem<'info> {
         bump
     )]
     pub admin_account: Account<'info, AdminAccount>,
+    #[account(constraint = program.programdata_address()? == Some(program_data.key()))]
+    pub program: Program<'info, NfnodeRewards>,
+    #[account(constraint = program_data.upgrade_authority_address == Some(user.key()))]
+    pub program_data: Account<'info, ProgramData>,
     pub system_program: Program<'info, System>,
 }

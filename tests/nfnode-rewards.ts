@@ -30,6 +30,7 @@ describe("nfnode-rewards", async () => {
   let adminKeypair: Keypair,
     userKeypair: Keypair,
     user2Keypair: Keypair,
+    deployerKeypair: Keypair,
     mint: PublicKey,
     nftMint: PublicKey,
     adminTokenAccount: PublicKey,
@@ -47,6 +48,7 @@ describe("nfnode-rewards", async () => {
       adminKeypair,
       userKeypair,
       user2Keypair,
+      deployerKeypair,
       mint,
       nftMint,
       adminTokenAccount,
@@ -61,7 +63,7 @@ describe("nfnode-rewards", async () => {
   });
 
   it("Initialize Reward System", async () => {
-    await initializeSystem(program, adminKeypair);
+    await initializeSystem(program, deployerKeypair);
   });
 
   it("Initialize Nfnode", async () => {
@@ -77,7 +79,7 @@ describe("nfnode-rewards", async () => {
   });
 
   it("Update admin", async () => {
-    await updateAdmin(program, adminKeypair);
+    await updateAdmin(program, adminKeypair, deployerKeypair);
   });
 
   it("Should update nfnode entry", async () => {
