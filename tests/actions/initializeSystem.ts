@@ -7,7 +7,7 @@ export async function initializeSystem(
   program: Program<RewardSystem>,
   adminKeypair: Keypair
 ) {
-  const programDataAddress = new PublicKey("EnVoP1ARgfsVHUPi9KovW5bsQSHGtJajn7FzSUNSbtQ6")//changes on diferents programID and deployments 
+  const programDataAddress = new PublicKey("7RHXmtumkAtJHPeQ4hYstR11DWVJoPfxFvW6MRPzkdzS")//changes on diferents programID and deployments 
   await program.methods
     .initializeSystem()
     .accounts({

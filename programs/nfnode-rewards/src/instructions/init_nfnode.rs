@@ -18,6 +18,17 @@ pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Res
     if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    // Fetch the mint account data
+    let nft_mint_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let nft_mint_account_data = nft_mint_account_info.try_borrow_data()?;
+    let nft_mint_account = Mint2022::try_deserialize(&mut &nft_mint_account_data[..])?;
+
+    // Validate that the total supply is 1
+    require!(nft_mint_account.supply == 1, RewardError::InvalidNftSupply);
+
+    // Validate that the decimal precision is 0
+    require!(nft_mint_account.decimals == 0, RewardError::InvalidNftDecimals);
+
     // Manually derive the associated token account PDA
     let (derived_ata, _bump_seed) = Pubkey::find_program_address(
         &[
@@ -29,10 +40,7 @@ pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Res
     );
 
     // Validate the ownership of the user_nft_token_account
-    require!(
-        derived_ata == *user_nft_token_account_info.key,
-        RewardError::InvalidNftTokenAccount
-    );
+    require!(derived_ata == *user_nft_token_account_info.key, RewardError::InvalidNftTokenAccount);
     let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
     let user_nft_token_account = SplToken2022Account::try_deserialize(
         &mut &user_nft_token_account_data[..]
