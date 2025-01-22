@@ -176,6 +176,28 @@ describe("nfnode-rewards", async () => {
     expect(claimError).to.not.be.null;
     expect(claimError.message).to.include("Insufficient NFT balance.");
   });
+  it("Attempt Unauthorized Reward Claim (should fail)", async () => {
+    let claimError = null;
+    try {
+      await ownerClaimRewards(
+        program,
+        provider,
+        adminKeypair,
+        user2Keypair, // Alice's keypair
+        mint,
+        nftMint,
+        userNFTTokenAccount, // Tom's NFT token account (maliciously used)
+        new anchor.BN(100000000),
+        new anchor.BN(32349) // Unique nonce
+      );
+    } catch (error) {
+      claimError = error;
+    }
+
+    //Assert that the claim failed
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Invalid Nft token account.");
+  });
 
   it("Claim Rewards After Unpausing (should succeed)", async () => {
     await ownerClaimRewards(
