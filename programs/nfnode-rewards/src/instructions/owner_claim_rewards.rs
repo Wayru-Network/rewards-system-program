@@ -48,6 +48,18 @@ pub fn owner_claim_rewards(
     if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    // Manually derive the associated token account PDA
+    let (derived_ata, _bump_seed) = Pubkey::find_program_address(
+        &[
+            &ctx.accounts.user.key().to_bytes(),
+            &ctx.accounts.token_program_2022.key().to_bytes(),
+            &ctx.accounts.nft_mint_address.key().to_bytes(),
+        ],
+        &ctx.accounts.associated_token_program.key()
+    );
+
+    // Validate the ownership of the user_nft_token_account
+    require!(derived_ata == *user_nft_token_account_info.key, RewardError::InvalidNftTokenAccount);
 
     let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
     let user_nft_token_account = SplToken2022Account::try_deserialize(
