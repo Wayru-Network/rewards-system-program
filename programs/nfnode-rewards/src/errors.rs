@@ -31,6 +31,10 @@ pub enum RewardError {
     SameAdminPubkey,
     #[msg("Admin already accepted.")]
     AlreadyAccepted,
+    #[msg("Program already paused.")]
+    AlreadyPaused,
+    #[msg("Program already running.")]
+    AlreadyRunning,
     #[msg("Invalid pubkey.")]
     InvalidPubkey,
     #[msg("Reward amount must be greater than zero.")]

@@ -61,6 +61,7 @@ pub mod reward_system {
             ctx.accounts.user.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
         );
+        require!(admin_account.paused == false, RewardError::AlreadyPaused);
         admin_account.paused = true;
         Ok(())
     }
@@ -71,6 +72,7 @@ pub mod reward_system {
             ctx.accounts.user.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
         );
+        require!(admin_account.paused == true, RewardError::AlreadyRunning);
         admin_account.paused = false;
         Ok(())
     }
