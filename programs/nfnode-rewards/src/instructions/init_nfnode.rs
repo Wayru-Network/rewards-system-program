@@ -1,5 +1,8 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{ token_interface::{ Mint as Mint2022, TokenInterface, TokenAccount as SplToken2022Account } };
+use anchor_spl::{
+    associated_token::{ AssociatedToken },
+    token_interface::{ Mint as Mint2022, TokenInterface, TokenAccount as SplToken2022Account },
+};
 use crate::{ errors::RewardError, state::{ NfNodeEntry, AdminAccount } };
 pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Result<()> {
     let admin_account = &ctx.accounts.admin_account;
@@ -15,7 +18,21 @@ pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Res
     if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    // Manually derive the associated token account PDA
+    let (derived_ata, _bump_seed) = Pubkey::find_program_address(
+        &[
+            &ctx.accounts.user.key().to_bytes(),
+            &ctx.accounts.token_program_2022.key().to_bytes(),
+            &ctx.accounts.nft_mint_address.key().to_bytes(),
+        ],
+        &ctx.accounts.associated_token_program.key()
+    );
 
+    // Validate the ownership of the user_nft_token_account
+    require!(
+        derived_ata == *user_nft_token_account_info.key,
+        RewardError::InvalidNftTokenAccount
+    );
     let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
     let user_nft_token_account = SplToken2022Account::try_deserialize(
         &mut &user_nft_token_account_data[..]
@@ -34,8 +51,8 @@ pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Res
     nfnode_entry.manufacturer = ctx.accounts.manufacturer.key();
     let current_timestamp = Clock::get()?.unix_timestamp; // if we use current timestamp rewards can be claimed after 24 hours
     nfnode_entry.owner_last_claimed_timestamp = 0; //current_timestamp; //change in production
-    nfnode_entry.host_last_claimed_timestamp = 0;//current_timestamp;
-    nfnode_entry.manufacturer_last_claimed_timestamp = 0;//current_timestamp;
+    nfnode_entry.host_last_claimed_timestamp = 0; //current_timestamp;
+    nfnode_entry.manufacturer_last_claimed_timestamp = 0; //current_timestamp;
     nfnode_entry.total_rewards_claimed = 0;
     Ok(())
 }
@@ -63,6 +80,7 @@ pub struct InitializeNfNode<'info> {
     pub nfnode_entry: Account<'info, NfNodeEntry>,
     #[account(seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program_2022: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

@@ -65,7 +65,9 @@ describe("nfnode-rewards", async () => {
   it("Initialize Reward System", async () => {
     await initializeSystem(program, deployerKeypair);
   });
-
+  it("Update admin", async () => {
+    await updateAdmin(program, adminKeypair, deployerKeypair, adminAccountPDA);
+  });
   it("Initialize Nfnode", async () => {
     await initializeNfnode(
       program,
@@ -78,9 +80,6 @@ describe("nfnode-rewards", async () => {
     );
   });
 
-  it("Update admin", async () => {
-    await updateAdmin(program, adminKeypair, deployerKeypair);
-  });
 
   it("Should update nfnode entry", async () => {
     await updateNfnode(

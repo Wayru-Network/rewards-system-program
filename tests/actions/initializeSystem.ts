@@ -7,7 +7,7 @@ export async function initializeSystem(
   program: Program<RewardSystem>,
   adminKeypair: Keypair
 ) {
-  const programDataAddress = new PublicKey("WsTkYfmSv6CduSSZihYtwP61347ENtyaizgusKG2hLL")//changes on diferents programID and deployments 
+  const programDataAddress = new PublicKey("EnVoP1ARgfsVHUPi9KovW5bsQSHGtJajn7FzSUNSbtQ6")//changes on diferents programID and deployments 
   await program.methods
     .initializeSystem()
     .accounts({
@@ -15,5 +15,5 @@ export async function initializeSystem(
       programData: programDataAddress
     })
     .signers([adminKeypair])
-    .rpc();
+    .rpc({ commitment: 'confirmed' });
 }

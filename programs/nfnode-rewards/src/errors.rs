@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 #[error_code]
 pub enum RewardError {
     #[msg("Unauthorized access admin.")]
@@ -22,4 +21,6 @@ pub enum RewardError {
     InsufficientNftBalance,
     #[msg("Invalid Nfnode entry.")]
     InvalidNfNodeEntry,
+    #[msg("Invalid Nft token account.")]
+    InvalidNftTokenAccount,
 }
