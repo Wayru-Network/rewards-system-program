@@ -19,5 +19,7 @@ pub struct NfNodeEntry {
 #[account]
 pub struct AdminAccount {
     pub admin_pubkey: Pubkey,
+    pub admin_candidate_pubkey: Pubkey,
     pub paused: bool,
+    pub admin_update_requested: bool,
 }

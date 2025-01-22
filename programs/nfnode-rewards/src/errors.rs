@@ -23,4 +23,14 @@ pub enum RewardError {
     InvalidNfNodeEntry,
     #[msg("Invalid Nft token account.")]
     InvalidNftTokenAccount,
+    #[msg("New admin can't be the same current admin")]
+    SameAdminPubkey,
+    #[msg("Admin already accepted.")]
+    AlreadyAccepted,
+    #[msg("Invalid pubkey.")]
+    InvalidPubkey,
+    #[msg("Reward amount must be greater than zero.")]
+    InvalidRewardAmount,
+    #[msg("Funding amount must be greater than zero.")]
+    InvalidFundingAmount,
 }

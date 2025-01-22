@@ -17,7 +17,8 @@ import {
   ownerClaimRewards,
   pauseProgram,
   unpauseProgram,
-  othersClaimRewards
+  othersClaimRewards,
+  acceptAdmin
 } from "./actions";
 
 describe("nfnode-rewards", async () => {
@@ -65,8 +66,11 @@ describe("nfnode-rewards", async () => {
   it("Initialize Reward System", async () => {
     await initializeSystem(program, deployerKeypair);
   });
-  it("Update admin", async () => {
+  it("Update admin request", async () => {
     await updateAdmin(program, adminKeypair, deployerKeypair, adminAccountPDA);
+  });
+  it("Accept admin request", async () => {
+    await acceptAdmin(program, adminKeypair, adminAccountPDA);
   });
   it("Initialize Nfnode", async () => {
     await initializeNfnode(

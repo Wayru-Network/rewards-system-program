@@ -10,6 +10,9 @@ pub fn owner_claim_rewards(
     reward_amount: u64,
     nonce: u64
 ) -> Result<()> {
+    // Validate that the reward amount is greater than zero
+    require!(reward_amount > 0, RewardError::InvalidRewardAmount);
+
     let reward_entry = &mut ctx.accounts.reward_entry;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
 

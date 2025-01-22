@@ -19,8 +19,11 @@ pub mod reward_system {
         instructions::initialize_system(ctx)
     }
 
-    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
-        instructions::update_admin(ctx, new_admin_pubkey)
+    pub fn update_admin_request(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
+        instructions::update_admin_request(ctx, new_admin_pubkey)
+    }
+    pub fn accept_admin_request(ctx: Context<UpdateAdmin>) -> Result<()> {
+        instructions::accept_admin_request(ctx)
     }
 
     pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Result<()> {
@@ -31,6 +34,9 @@ pub mod reward_system {
     }
 
     pub fn fund_token_storage(ctx: Context<FundTokenStorage>, amount: u64) -> Result<()> {
+        // Validate that the amount is greater than zero
+        require!(amount > 0, RewardError::InvalidFundingAmount);
+
         token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
         Ok(())
     }
