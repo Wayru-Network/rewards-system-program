@@ -123,7 +123,7 @@ export async function setupTests(
     nftMint,
     userNFTTokenAccount,
     adminKeypair,
-    2, // 1 NFT
+    1, // 1 NFT
     [],
     { commitment: "finalized" },
     TOKEN_2022_PROGRAM_ID
