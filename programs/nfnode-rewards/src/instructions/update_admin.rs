@@ -5,6 +5,7 @@ pub fn update_admin_request(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey)
     let admin_account = &mut ctx.accounts.admin_account;
     require!(ctx.accounts.user.key() == admin_account.admin_pubkey, RewardError::UnauthorizedAdmin);
     require!(new_admin_pubkey != admin_account.admin_pubkey, RewardError::SameAdminPubkey);
+    require!(new_admin_pubkey != admin_account.admin_candidate_pubkey, RewardError::SameAdminCandidatePubkey);
     require!(new_admin_pubkey != Pubkey::default(), RewardError::InvalidPubkey); // Non-zero address validation
       admin_account.admin_candidate_pubkey = new_admin_pubkey;
     Ok(())
@@ -19,7 +20,6 @@ pub fn accept_admin_request(ctx: Context<UpdateAdmin>) -> Result<()> {
         admin_account.admin_pubkey != admin_account.admin_candidate_pubkey,
         RewardError::AlreadyAccepted
     );
-    require!(admin_account.admin_candidate_pubkey != Pubkey::default(), RewardError::InvalidPubkey); // Non-zero address validation
     admin_account.admin_pubkey = admin_account.admin_candidate_pubkey;
     Ok(())
 }

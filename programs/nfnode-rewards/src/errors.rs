@@ -29,6 +29,8 @@ pub enum RewardError {
     InvalidNftDecimals,
     #[msg("New admin can't be the same current admin")]
     SameAdminPubkey,
+    #[msg("New admin can't be the same current admin candidate")]
+    SameAdminCandidatePubkey,
     #[msg("Admin already accepted.")]
     AlreadyAccepted,
     #[msg("Program already paused.")]
