@@ -1,11 +1,14 @@
 use anchor_lang::prelude::*;
-
+use anchor_spl::{
+    token::{ Token, Mint }, //Wayru Token
+};
 use crate::{ state::AdminAccount, NfnodeRewards };
 
 pub fn initialize_system(ctx: Context<InitializeSystem>) -> Result<()> {
     let admin_account = &mut ctx.accounts.admin_account;
     admin_account.admin_pubkey = ctx.accounts.user.key();
     admin_account.paused = false;
+    admin_account.valid_mint = ctx.accounts.token_mint.key();
     Ok(())
 }
 
@@ -21,6 +24,9 @@ pub struct InitializeSystem<'info> {
         bump
     )]
     pub admin_account: Account<'info, AdminAccount>,
+    ///CHECK: only read account
+    pub token_mint: Account<'info, Mint>,
+    pub token_program: Program<'info, Token>,
     #[account(constraint = program.programdata_address()? == Some(program_data.key()))]
     pub program: Program<'info, NfnodeRewards>,
     #[account(constraint = program_data.upgrade_authority_address == Some(user.key()))]

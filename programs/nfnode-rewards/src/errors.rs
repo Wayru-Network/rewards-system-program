@@ -43,4 +43,14 @@ pub enum RewardError {
     InvalidRewardAmount,
     #[msg("Funding amount must be greater than zero.")]
     InvalidFundingAmount,
+    #[msg("Deposit amount must be equal than 5000000000.")]
+    InvalidDepositAmount,
+    #[msg("Deposit already made.")]
+    DepositAlreadyMade,
+    #[msg("Withdraw already made.")]
+    WithdrawAlreadyMade,
+    #[msg("Withdraw too early.")]
+    WithdrawTooEarly,
+    #[msg("Invalid token mint.")]
+    InvalidMint,
 }

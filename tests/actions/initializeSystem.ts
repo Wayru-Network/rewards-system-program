@@ -5,14 +5,17 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 
 export async function initializeSystem(
   program: Program<RewardSystem>,
-  adminKeypair: Keypair
+  adminKeypair: Keypair,
+  tokenMint: PublicKey
 ) {
   const programDataAddress = new PublicKey("7RHXmtumkAtJHPeQ4hYstR11DWVJoPfxFvW6MRPzkdzS")//changes on diferents programID and deployments 
   await program.methods
     .initializeSystem()
     .accounts({
       user: adminKeypair.publicKey,
-      programData: programDataAddress
+      programData: programDataAddress,
+      tokenMint
+
     })
     .signers([adminKeypair])
     .rpc({ commitment: 'confirmed' });

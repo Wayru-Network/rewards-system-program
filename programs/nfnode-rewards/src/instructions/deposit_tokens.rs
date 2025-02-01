@@ -2,26 +2,19 @@ use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::{ AssociatedToken },
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
-    token_interface::{ Mint as Mint2022, TokenInterface, TokenAccount as SplToken2022Account },
+    token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
-use crate::{ errors::RewardError, state::{ NfNodeEntry, AdminAccount, NfNodeType } };
-
-pub fn initialize_nfnode(
-    ctx: Context<InitializeNfNode>,
-    host_share: u64,
-    nfnode_type: NfNodeType
-) -> Result<()> {
+use crate::{ errors::RewardError, state::{ NfNodeEntry, AdminAccount } };
+pub fn deposit_tokens(ctx: Context<DepositTokens>) -> Result<()> {
+    let nfnode_entry = &ctx.accounts.nfnode_entry;
+    require!(nfnode_entry.deposit_amount == 0, RewardError::DepositAlreadyMade);
+    // Validate that token_mint is a valid mint registered in admin account
     let admin_account = &ctx.accounts.admin_account;
-    require!(
-        ctx.accounts.user_admin.key() == admin_account.admin_pubkey,
-        RewardError::UnauthorizedAdmin
-    );
+    require!(!admin_account.paused, RewardError::ProgramPaused);
     let valid_mint = admin_account.valid_mint;
     let token_mint = &ctx.accounts.token_mint;
     require!(valid_mint == token_mint.key(), RewardError::InvalidMint);
-    let user_admin_account_info = ctx.accounts.user_admin.to_account_info();
-    let is_partially_signed_by_admin = user_admin_account_info.is_signer;
-    require!(is_partially_signed_by_admin, RewardError::MissingAdminSignature);
+
     let user_nft_token_account_info = &ctx.accounts.user_nft_token_account;
 
     if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
@@ -62,56 +55,31 @@ pub fn initialize_nfnode(
     if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
         return err!(RewardError::InvalidNftMint);
     }
-    //deposit 5000 WAYRU tokens if the type is not DON
     let amount = 5000000000;
-    if nfnode_type != NfNodeType::DON {
-        token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
-    }
+    token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
-    nfnode_entry.host = ctx.accounts.host.key();
-    nfnode_entry.host_share = host_share;
-    nfnode_entry.manufacturer = ctx.accounts.manufacturer.key();
-    let current_timestamp = Clock::get()?.unix_timestamp; // if we use current timestamp rewards can be claimed after 24 hours
-    nfnode_entry.owner_last_claimed_timestamp = 0; //current_timestamp; //change in production
-    nfnode_entry.host_last_claimed_timestamp = 0; //current_timestamp;
-    nfnode_entry.manufacturer_last_claimed_timestamp = 0; //current_timestamp;
-    nfnode_entry.total_rewards_claimed = 0;
-
-    if nfnode_type != NfNodeType::DON {
-        nfnode_entry.nfnode_type = nfnode_type;
-        nfnode_entry.deposit_amount = amount;
-        nfnode_entry.deposit_timestamp = Clock::get()?.unix_timestamp;
-    }
-
+    nfnode_entry.deposit_amount = amount;
+    nfnode_entry.deposit_timestamp = Clock::get()?.unix_timestamp;
     Ok(())
 }
 #[derive(Accounts)]
-pub struct InitializeNfNode<'info> {
-    #[account(mut)]
-    pub user_admin: Signer<'info>,
+pub struct DepositTokens<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-    ///CHECK: only read account
-    pub host: AccountInfo<'info>,
-    ///CHECK: only read account
-    pub manufacturer: AccountInfo<'info>,
-    ///CHECK: only read account
     pub token_mint: Account<'info, Mint>,
     ///CHECK: only read account
     pub nft_mint_address: InterfaceAccount<'info, Mint2022>,
     /// CHECK: used to check nft ownership
     pub user_nft_token_account: AccountInfo<'info>,
     #[account(
-        init,
-        payer = user,
-        space = 8 + std::mem::size_of::<NfNodeEntry>(),
+        mut,
         seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()],
         bump
     )]
-    pub nfnode_entry: Account<'info, NfNodeEntry>,
+    pub nfnode_entry: Box<Account<'info, NfNodeEntry>>,
     #[account(seeds = [b"admin_account"], bump)]
     pub admin_account: Account<'info, AdminAccount>,
-    /// CHECK: only read account
+    /// CHECK:
     #[account(mut, seeds = [b"token_storage",nft_mint_address.key().as_ref()], bump)]
     pub token_storage_authority: AccountInfo<'info>,
     #[account(
@@ -132,7 +100,8 @@ pub struct InitializeNfNode<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
-impl<'info> InitializeNfNode<'info> {
+
+impl<'info> DepositTokens<'info> {
     fn transfer_to_token_storage(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
         CpiContext::new(self.token_program.to_account_info(), Transfer {
             from: self.user_token_account.to_account_info(),
