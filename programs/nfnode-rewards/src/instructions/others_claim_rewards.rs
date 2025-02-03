@@ -15,6 +15,8 @@ pub fn others_claim_rewards(
 
     let reward_entry = &mut ctx.accounts.reward_entry;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
+    let amount = 5000000000;
+    require!(nfnode_entry.deposit_amount == amount, RewardError::DepositRequired);
 
     let admin_account = &ctx.accounts.admin_account;
     require!(!admin_account.paused, RewardError::ProgramPaused);

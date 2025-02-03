@@ -53,4 +53,6 @@ pub enum RewardError {
     WithdrawTooEarly,
     #[msg("Invalid token mint.")]
     InvalidMint,
+    #[msg("Deposit required.")]
+    DepositRequired,
 }
