@@ -55,6 +55,16 @@ pub fn update_nfnode(ctx: Context<UpdateNfNode>, host_share: u64) -> Result<()> 
     if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority;
+    require!(
+        mint_authority ==
+            solana_program::program_option::COption::Some(admin_account.mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
     nfnode_entry.host = ctx.accounts.host.key();
     nfnode_entry.host_share = host_share;

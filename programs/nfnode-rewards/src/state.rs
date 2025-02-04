@@ -31,4 +31,5 @@ pub struct AdminAccount {
     pub paused: bool,
     pub admin_update_requested: bool,
     pub valid_mint: Pubkey,
+    pub mint_authority: Pubkey,
 }

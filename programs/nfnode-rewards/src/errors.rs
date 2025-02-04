@@ -55,4 +55,6 @@ pub enum RewardError {
     InvalidMint,
     #[msg("Deposit required.")]
     DepositRequired,
+    #[msg("Unauthorized Mint Authority.")]
+    UnauthorizedMintAuthority,
 }

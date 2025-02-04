@@ -70,7 +70,7 @@ describe("nfnode-rewards", async () => {
   });
 
   it("Initialize Reward System", async () => {
-    await initializeSystem(program, deployerKeypair, mint);
+    await initializeSystem(program, deployerKeypair, mint, adminKeypair);
   });
   it("Update admin request", async () => {
     await updateAdmin(program, adminKeypair, deployerKeypair, adminAccountPDA);
@@ -79,17 +79,26 @@ describe("nfnode-rewards", async () => {
     await acceptAdmin(program, adminKeypair, adminAccountPDA);
   });
   it("Initialize Nfnode byod", async () => {
-    await initializeNfnode(
-      program,
-      adminKeypair,
-      userKeypair,
-      user2Keypair,
-      nftMint,
-      userNFTTokenAccount,
-      nfnodeEntryPDA,
-      mint,
-      { byod: {} }
-    );
+    let error = null;
+    try {
+      await initializeNfnode(
+        program,
+        adminKeypair,
+        userKeypair,
+        user2Keypair,
+        nftMint,
+        userNFTTokenAccount,
+        nfnodeEntryPDA,
+        mint,
+        { byod: {} }
+      );
+    } catch (e) {
+      console.log(e)
+      error = e
+    }
+    expect(error).to.be.null;
+    // expect(claimError.message).to.include("Deposit already made.");
+
   });
   it("Attempt to Deposit twice (should fail)", async () => {
     let claimError = null;
@@ -102,7 +111,7 @@ describe("nfnode-rewards", async () => {
     expect(claimError.message).to.include("Deposit already made.");
 
   });
-  
+
   it("Should update nfnode entry", async () => {
     await updateNfnode(
       program,
@@ -114,7 +123,7 @@ describe("nfnode-rewards", async () => {
       nfnodeEntryPDA
     );
   });
-  
+
   it("Initialize Nfnode DON", async () => {
     await initializeNfnode(
       program,

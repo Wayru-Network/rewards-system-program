@@ -5,18 +5,19 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 
 export async function initializeSystem(
   program: Program<RewardSystem>,
-  adminKeypair: Keypair,
-  tokenMint: PublicKey
+  deployerKeypair: Keypair,
+  tokenMint: PublicKey,
+  adminKeypair: Keypair
 ) {
-  const programDataAddress = new PublicKey("7RHXmtumkAtJHPeQ4hYstR11DWVJoPfxFvW6MRPzkdzS")//changes on diferents programID and deployments 
+  const programDataAddress = new PublicKey("CgPQ6kuTiGvh6b5b2UzbKwL4XgLbrYXNA8t4regUCfEW")//changes on diferents programID and deployments 
   await program.methods
     .initializeSystem()
     .accounts({
-      user: adminKeypair.publicKey,
+      user: deployerKeypair.publicKey,
       programData: programDataAddress,
-      tokenMint
-
+      tokenMint,
+      mintAuthority: adminKeypair.publicKey
     })
-    .signers([adminKeypair])
+    .signers([deployerKeypair])
     .rpc({ commitment: 'confirmed' });
 }

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::{ AssociatedToken },
+    associated_token::AssociatedToken,
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
     token_interface::{ Mint as Mint2022, TokenInterface, TokenAccount as SplToken2022Account },
 };
@@ -62,6 +62,17 @@ pub fn initialize_nfnode(
     if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority;
+    require!(
+        mint_authority ==
+            solana_program::program_option::COption::Some(admin_account.mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
+
     //deposit 5000 WAYRU tokens if the type is not DON
     let amount = 5000000000;
     if nfnode_type != NfNodeType::DON {
@@ -71,7 +82,7 @@ pub fn initialize_nfnode(
     nfnode_entry.host = ctx.accounts.host.key();
     nfnode_entry.host_share = host_share;
     nfnode_entry.manufacturer = ctx.accounts.manufacturer.key();
-    let current_timestamp = Clock::get()?.unix_timestamp; // if we use current timestamp rewards can be claimed after 24 hours
+    // let current_timestamp = Clock::get()?.unix_timestamp; // if we use current timestamp rewards can be claimed after 24 hours
     nfnode_entry.owner_last_claimed_timestamp = 0; //current_timestamp; //change in production
     nfnode_entry.host_last_claimed_timestamp = 0; //current_timestamp;
     nfnode_entry.manufacturer_last_claimed_timestamp = 0; //current_timestamp;
@@ -108,9 +119,9 @@ pub struct InitializeNfNode<'info> {
         seeds = [b"nfnode_entry", nft_mint_address.key().as_ref()],
         bump
     )]
-    pub nfnode_entry: Account<'info, NfNodeEntry>,
+    pub nfnode_entry: Box<Account<'info, NfNodeEntry>>,
     #[account(seeds = [b"admin_account"], bump)]
-    pub admin_account: Account<'info, AdminAccount>,
+    pub admin_account: Box<Account<'info, AdminAccount>>,
     /// CHECK: only read account
     #[account(mut, seeds = [b"token_storage",nft_mint_address.key().as_ref()], bump)]
     pub token_storage_authority: AccountInfo<'info>,

@@ -9,6 +9,7 @@ pub fn initialize_system(ctx: Context<InitializeSystem>) -> Result<()> {
     admin_account.admin_pubkey = ctx.accounts.user.key();
     admin_account.paused = false;
     admin_account.valid_mint = ctx.accounts.token_mint.key();
+    admin_account.mint_authority = ctx.accounts.mint_authority.key();
     Ok(())
 }
 
@@ -24,6 +25,8 @@ pub struct InitializeSystem<'info> {
         bump
     )]
     pub admin_account: Account<'info, AdminAccount>,
+    ///CHECK: only read account
+    pub mint_authority: AccountInfo<'info>,
     ///CHECK: only read account
     pub token_mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,

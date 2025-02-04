@@ -13,7 +13,7 @@ export async function initializeNfnode(
   nftMint: PublicKey,
   userNFTTokenAccount: PublicKey,
   nfnodeEntryPDA: PublicKey,
-  tokenMint:PublicKey,
+  tokenMint: PublicKey,
   nfnodeType: { don: {} } | { byod: {} } | { wayruHotspot: {} }
 ) {
   await program.methods

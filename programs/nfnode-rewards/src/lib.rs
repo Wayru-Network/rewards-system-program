@@ -8,7 +8,7 @@ mod errors;
 mod instructions;
 mod state;
 use crate::{ errors::*, state::{ NfNodeType } };
-declare_id!("6vhUweVYdxcq6yeo7WZgKRxCHy3iUxUXrtbmdfZ3notP");
+declare_id!("9sG3k17Kuc9HMwkq5txjmRiRwbShBHrWudpVK4z1CkVV");
 
 #[program]
 pub mod reward_system {

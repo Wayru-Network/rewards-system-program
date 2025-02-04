@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::{ AssociatedToken },
+    associated_token::AssociatedToken,
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
     token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
@@ -55,6 +55,16 @@ pub fn deposit_tokens(ctx: Context<DepositTokens>) -> Result<()> {
     if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority;
+    require!(
+        mint_authority ==
+            solana_program::program_option::COption::Some(admin_account.mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
     let amount = 5000000000;
     token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
