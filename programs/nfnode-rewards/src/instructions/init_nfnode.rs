@@ -107,7 +107,7 @@ pub struct InitializeNfNode<'info> {
     ///CHECK: only read account
     pub manufacturer: AccountInfo<'info>,
     ///CHECK: only read account
-    pub token_mint: Account<'info, Mint>,
+    pub token_mint: Box<Account<'info, Mint>>,
     ///CHECK: only read account
     pub nft_mint_address: InterfaceAccount<'info, Mint2022>,
     /// CHECK: used to check nft ownership
@@ -133,7 +133,8 @@ pub struct InitializeNfNode<'info> {
     )]
     pub token_storage_account: Box<Account<'info, TokenAccount>>,
     #[account(
-        mut,
+        init_if_needed,
+        payer = user,
         associated_token::mint = token_mint,
         associated_token::authority = user,
     )]
