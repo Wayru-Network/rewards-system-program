@@ -57,4 +57,10 @@ pub enum RewardError {
     DepositRequired,
     #[msg("Unauthorized Mint Authority.")]
     UnauthorizedMintAuthority,
+    #[msg("Mint authority already exists.")]
+    MintAuthorityAlreadyExists,
+    #[msg("Mint authority not found.")]
+    MintAuthorityNotFound,
+    #[msg("Mint authority list is full.")]
+    MintAuthorityListFull,    
 }

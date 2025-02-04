@@ -27,10 +27,9 @@ pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
     let nft_mint_account = Mint2022::try_deserialize(&mut &nft_mint_account_data[..])?;
     
     //validate if nft has valid mint authority
-    let mint_authority = nft_mint_account.mint_authority;
+    let mint_authority = nft_mint_account.mint_authority.unwrap();
     require!(
-        mint_authority ==
-            solana_program::program_option::COption::Some(admin_account.mint_authority),
+        admin_account.mint_authorities.contains(&mint_authority),
         RewardError::UnauthorizedMintAuthority
     );
     // Validate that the total supply is 1

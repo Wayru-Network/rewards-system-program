@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+pub const MAX_MINT_AUTHORITIES: usize = 10; //
 #[account]
 pub struct RewardEntry {
     pub last_claimed_nonce: u64,
@@ -31,5 +32,5 @@ pub struct AdminAccount {
     pub paused: bool,
     pub admin_update_requested: bool,
     pub valid_mint: Pubkey,
-    pub mint_authority: Pubkey,
+    pub mint_authorities: Vec<Pubkey>
 }
