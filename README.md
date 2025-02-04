@@ -1,465 +1,792 @@
-# NfNode Rewards Program
+# NfNode Rewards System Program
+
+A decentralized rewards system built on the Solana blockchain using the Anchor framework. This program enables administrators to establish and manage a token reward system for NfNode owners and operators, with secure claim mechanisms and flexible reward distribution.
+
+## 📋 Table of Contents
+
+* [Overview](#overview)
+* [Features](#features)
+* [Architecture](#architecture)
+* [Prerequisites](#prerequisites)
+* [Installation](#installation)
+* [Configuration](#configuration)
+* [Building and Testing](#building-and-testing)
+* [Deployment](#deployment)
+* [Usage Examples](#usage-examples)
+* [Program Instructions](#program-instructions)
+* [Security Considerations](#security-considerations)
+* [Error Handling](#error-handling)
+* [Contributing](#contributing)
+* [License](#license)
+* [Acknowledgments](#acknowledgments)
 
 ## Overview
 
-The NfNode Rewards Program is a decentralized application built on the Solana blockchain that enables users to claim rewards based on their NfNode operation and ownership. It leverages the Anchor framework to streamline the development of Solana programs.
+The NfNode Rewards Program is a Solana smart contract that facilitates a secure and efficient reward distribution system. It allows:
 
-This program allows administrators to establish a reward system, fund it with tokens, and manage the reward claiming process. Users, who are NfNode owners or operators, can claim rewards once per day. Each claim requires a partial signature from an administrator, enhancing security. The user claiming the reward is responsible for the transaction fees.
+* **Administrators** to initialize and fund reward pools, manage NfNode entries, and control program operations
+* **NfNode Owners** to claim rewards based on their ownership and operation
+* **Hosts** to claim their share of rewards for hosting NfNodes
+
+The system implements multiple security layers including admin partial signatures, nonce-based replay attack prevention, daily claim limits, and program pausing capabilities.
+
+### Key Concepts
+
+* **NfNode**: A network node represented by an NFT, with different types (DON, BYOD, WAYRU_HOTSPOT)
+* **Reward Claims**: Users can claim rewards once per day, requiring admin partial signature
+* **Token Storage**: Centralized token storage account managed by a PDA (Program Derived Address)
+* **Nonce System**: Prevents replay attacks by tracking unique claim identifiers
 
 ## Features
 
--   **Reward Claiming:** Users can claim rewards based on specified parameters, such as the operation of an NfNode.
--   **Admin Partial Signature:** Reward claim transactions require a partial signature from an administrator, adding an extra layer of security.
--   **User Pays Transaction Fees:** Users claiming rewards are responsible for paying the associated transaction fees.
--   **Secure Nonce Handling:** Nonces are used to prevent replay attacks, ensuring each reward claim is unique.
--   **Daily Claim Limit:** Users can claim rewards only once per day.
--   **Program Pausing:** Administrators can pause the program to halt reward claims and unpause it to resume them.
--   **Token Transfers:** The program facilitates token transfers from a designated storage account to the user's token account.
--   **NfNode Management:** The program allows for the initialization and updating of NfNode entries, including host information and reward shares.
--   **Host Rewards:** Hosts of NfNodes can claim rewards based on their share.
--   **Token Deposit and Withdrawal:** Users can deposit tokens when initializing NfNodes (except for DON types) and withdraw tokens after a specified period.
+### Core Functionality
 
-## Getting Started
+* ✅ **Reward Claiming**: Secure reward distribution to NfNode owners and hosts
+* ✅ **Admin Partial Signature**: Multi-signature requirement for enhanced security
+* ✅ **Daily Claim Limit**: Prevents abuse with once-per-day claim restrictions
+* ✅ **Nonce Protection**: Replay attack prevention through unique nonce tracking
+* ✅ **Program Pausing**: Emergency stop mechanism for administrators
+* ✅ **NfNode Management**: Initialize and update NfNode entries with host information
+* ✅ **Token Deposits/Withdrawals**: Users can deposit and withdraw tokens (with time restrictions)
+* ✅ **Flexible Reward Shares**: Configurable reward distribution between owners and hosts
+* ✅ **Multiple NfNode Types**: Support for DON, BYOD, and WAYRU_HOTSPOT types
 
-### Prerequisites
+### Security Features
 
--   Rust and Cargo installed.
--   Solana CLI installed and configured.
--   Anchor framework installed.
--   A Solana wallet with some SOL for transaction fees.
--   Node.js and npm installed.
+* 🔒 Admin-controlled operations with partial signature requirements
+* 🔒 NFT ownership verification for reward claims
+* 🔒 Nonce-based transaction uniqueness
+* 🔒 Program pause/unpause functionality
+* 🔒 Comprehensive error handling and validation
 
-### Installation
+## Architecture
 
-1. Clone the repository (ensure you have access):
+### Technology Stack
 
-    ```bash
-    git clone https://github.com/Wayru-Network/rewards-system-program.git
-    cd rewards-system-program
-    ```
+* **Blockchain**: Solana
+* **Framework**: Anchor 0.30.1
+* **Language**: Rust (program), TypeScript (tests)
+* **Token Standard**: SPL Token & Token-2022
 
-2. Install the dependencies:
+### Program Structure
 
-    ```bash
-    npm install
-    ```
-
-3. Set up environment variables:
-
-    Create a `.env` file in the root directory and add the following:
-
-    ```
-    ADMIN_PRIVATE_KEY=<your_admin_private_key>
-    USER_PRIVATE_KEY=<your_user_private_key>
-    USER2_PRIVATE_KEY=<your_user2_private_key>
-    SOLANA_API_URL=<your_solana_api_url>
-    ```
-
-    Replace placeholders with your private keys and Solana API URL. For local testing, use `http://localhost:8899`.
-
-4. Build the project:
-
-    ```bash
-    anchor build
-    ```
-
-5. Deploy the program to the Solana cluster:
-
-    ```bash
-    anchor deploy
-    ```
-
-### Running Tests
-
-Run tests with:
-
-```bash
-anchor test
+```
+programs/nfnode-rewards/
+├── src/
+│   ├── lib.rs           # Main program entry point
+│   ├── instructions/    # Instruction handlers
+│   ├── state.rs         # State structures
+│   └── errors.rs        # Custom error definitions
 ```
 
-**Note:** For local testing, start a local validator:
+### Key Accounts
+
+* **Admin Account**: PDA storing admin public key and program state
+* **NfNode Entry**: PDA storing NfNode information (host, type, shares)
+* **Reward Entry**: PDA tracking user reward claims (nonces, last claim date)
+* **Token Storage**: Token account managed by PDA for reward distribution
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+* **Rust** (latest stable version)
+  
+
+```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+
+* **Solana CLI** (v1.18 or later)
+  
+
+```bash
+  sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+  ```
+
+* **Anchor Framework** (v0.30.1)
+  
+
+```bash
+  cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
+  avm install latest
+  avm use latest
+  ```
+
+* **Node.js** (v16 or later) and npm/yarn
+  
+
+```bash
+  node --version
+  npm --version
+  ```
+
+* **Solana Wallet** with sufficient SOL for deployment and transactions
+
+## Installation
+
+1. **Clone the repository**
+
+   
+
+```bash
+   git clone https://github.com/Wayru-Network/rewards-system-program.git
+   cd rewards-system-program
+   ```
+
+2. **Install dependencies**
+
+   
+
+```bash
+   npm install
+   # or
+   yarn install
+   ```
+
+3. **Verify Anchor installation**
+
+   
+
+```bash
+   anchor --version
+   ```
+
+4. **Build the project**
+
+   
+
+```bash
+   anchor build
+   ```
+
+## Configuration
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```env
+ADMIN_PRIVATE_KEY=<your_admin_private_key_base58>
+USER_PRIVATE_KEY=<your_user_private_key_base58>
+USER2_PRIVATE_KEY=<your_user2_private_key_base58>
+SOLANA_API_URL=https://api.devnet.solana.com
+```
+
+**For local development:**
+
+```env
+SOLANA_API_URL=http://localhost:8899
+```
+
+**Security Note**: Never commit your `.env` file. Add it to `.gitignore` .
+
+### Anchor Configuration
+
+The `Anchor.toml` file contains program configuration. Key settings:
+
+```toml
+[programs.localnet]
+reward_system = "EqeqjHyJTsmnVFCs3rnUEKSgvYBtjXa5ujJueiexWLHp"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+```
+
+## Building and Testing
+
+### Build the Program
+
+```bash
+anchor build
+```
+
+This will:
+* Compile the Rust program
+* Generate the IDL (Interface Definition Language)
+* Create deployment artifacts in `target/deploy/`
+
+### Run Tests
+
+**Start a local validator:**
 
 ```bash
 anchor localnet
 ```
 
-Or, to reset the validator:
+**Or reset and start fresh:**
 
 ```bash
 anchor localnet --reset
 ```
 
-### Interacting with the Program
+**Run tests:**
 
-Interact with the program using the provided TypeScript tests. Modify `tests/nfnode-rewards.ts` to set parameters and run tests to claim rewards.
-
-### Example Usage
-
-Here's an example of claiming rewards, based on the updated tests:
-
-```typescript
-// In tests/nfnode-rewards.ts
-it("Claim Rewards After Unpausing (should succeed)", async () => {
-    // ... (keypair configuration, airdrops, etc.) ...
-
-    // 1. Define the reward amount and nonce
-    const rewardAmount = new anchor.BN(100000000); // Example: 100 tokens
-    const nonce = new anchor.BN(12345); // Example: A unique nonce
-
-    // 2. Build the instruction to claim rewards
-    const ix = await program.methods
-      .ownerClaimRewards(rewardAmount, nonce)
-      .accounts({
-        userAdmin: adminKeypair.publicKey, // Admin's public key for partial signature
-        user: userKeypair.publicKey, // User's public key claiming the reward
-        tokenMint: mint, // Reward token mint address
-        nftMintAddress: nftMint, // NFT mint address
-        // ... other accounts (token_storage_authority, token_storage_account, user_token_account, admin_account, etc.) ...
-      })
-      .instruction();
-
-    // 3. Create a new transaction and add the instruction
-    let tx = new anchor.web3.Transaction();
-    tx.add(ix);
-
-    // 4. Set the recent blockhash and fee payer
-    tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
-    tx.feePayer = userKeypair.publicKey; // User pays the transaction fees
-
-    // 5. Partially sign the transaction with the admin's keypair
-    tx.partialSign(adminKeypair);
-
-    // 6. Serialize the transaction without requiring all signatures
-    const serializedTx = tx.serialize({
-      requireAllSignatures: false,
-      verifySignatures: false,
-    });
-
-    // 7. Convert the serialized transaction to base64
-    const txBase64 = serializedTx.toString("base64");
-
-    // 8. Deserialize the transaction from base64
-    const recoveredTx = anchor.web3.Transaction.from(Buffer.from(txBase64, "base64"));
-
-    // 9. Sign the transaction with the user's keypair
-    recoveredTx.partialSign(userKeypair);
-
-    // 10. Serialize the transaction for sending
-    const connection = new Connection(process.env.SOLANA_API_URL);
-    const serializedTxFinal = recoveredTx.serialize({
-      requireAllSignatures: true,
-      verifySignatures: true,
-    });
-
-    // 11. Send and confirm the transaction
-    const txId = await anchor.web3.sendAndConfirmRawTransaction(connection, serializedTxFinal, { commitment: 'confirmed' });
-
-    console.log("Rewards Claimed Successfully");
-    console.log("Transaction ID:", txId);
-  });
+```bash
+anchor test
 ```
 
-**Explanation:**
+**Or use npm scripts:**
 
-1. **Define reward amount and nonce:**
-    -   `rewardAmount`: The amount of tokens to claim.
-    -   `nonce`: A unique number for each claim, preventing replay attacks. The program ensures the nonce is greater than the last claimed nonce for the user and NFT, is the initial claim (nonce 1), or is a new claim after a nonce overflow.
-2. **Build the instruction:**
-    -   `ownerClaimRewards(rewardAmount, nonce)`: Calls the `owner_claim_rewards` function with the amount and nonce.
-    -   `.accounts(...)`: Specifies the accounts involved, including admin, user, token mint, NFT mint, and PDAs.
-    -   `.instruction()`: Creates the instruction object.
-3. **Create transaction:**
-    -   `new anchor.web3.Transaction()`: Creates a new transaction.
-    -   `tx.add(ix)`: Adds the `ownerClaimRewards` instruction to the transaction.
-4. **Set blockhash and fee payer:**
-    -   `tx.recentBlockhash`: Sets the recent blockhash.
-    -   `tx.feePayer = userKeypair.publicKey`: Sets the user as the fee payer.
-5. **Partial sign (admin):**
-    -   `tx.partialSign(adminKeypair)`: Admin partially signs the transaction.
-6. **Serialize:**
-    -   `tx.serialize(...)`: Serializes the transaction for network transmission.
-7. **Convert to base64:**
-    -   `serializedTx.toString("base64")`: Converts to base64, necessary for some workflows or temporary storage.
-8. **Deserialize:**
-    -   `anchor.web3.Transaction.from(...)`: Deserializes from base64 back to a `Transaction` object.
-9. **Partial sign (user):**
-    -   `recoveredTx.partialSign(userKeypair)`: User signs the deserialized transaction.
-10. **Serialize for sending:**
-    -   `recoveredTx.serialize(...)`: Serializes with all required signatures.
-11. **Send and confirm:**
-    -   `anchor.web3.sendAndConfirmRawTransaction(...)`: Sends and waits for confirmation.
+```bash
+npm test
+```
+
+### Test Structure
+
+Tests are located in `tests/` and organized as:
+* `nfnode-rewards.ts` - Main test file
+* `actions/` - Individual action tests
+* `utils/` - Helper functions
+
+## Deployment
+
+### Deploy to Devnet
+
+1. **Configure Solana CLI for devnet**
+   
+
+```bash
+   solana config set --url devnet
+   ```
+
+2. **Get devnet SOL** (if needed)
+   
+
+```bash
+   solana airdrop 2
+   ```
+
+3. **Clean previous builds**
+   
+
+```bash
+   anchor clean
+   ```
+
+4. **Build the program**
+   
+
+```bash
+   anchor build
+   ```
+
+5. **Deploy**
+   
+
+```bash
+   anchor deploy
+   ```
+
+### Deploy to Mainnet
+
+⚠️ **Warning**: Deploying to mainnet requires careful consideration and sufficient SOL (~6 SOL for deployment).
+
+1. **Switch to mainnet**
+   
+
+```bash
+   solana config set --url mainnet-beta
+   ```
+
+2. **Update Anchor.toml** with mainnet configuration
+
+3. **Build and deploy**
+   
+
+```bash
+   anchor build
+   anchor deploy
+   ```
+
+### Advanced Deployment
+
+For a complete deployment with IDL initialization:
+
+```bash
+# 1. Clean
+anchor clean
+
+# 2. Remove old keypair (if needed)
+rm -f program-keypair.json
+
+# 3. Create new program keypair
+mkdir -p target/deploy
+solana-keygen new -o target/deploy/reward_system-keypair.json --force
+
+# 4. Update program ID in lib.rs and Anchor.toml
+# Replace declare_id!() in programs/nfnode-rewards/src/lib.rs
+# Update [programs.devnet] in Anchor.toml
+
+# 5. Clean and build
+anchor clean
+anchor build
+
+# 6. Deploy
+anchor deploy --program-name reward_system \
+  --provider.cluster devnet \
+  --program-keypair target/deploy/reward_system-keypair.json
+
+# 7. Initialize IDL
+anchor idl init \
+  --provider.cluster devnet \
+  YOUR_PROGRAM_ID \
+  -f target/idl/reward_system.json
+
+# 8. (Optional) Close buffers to recover SOL
+solana program close --buffers \
+  --url https://api.devnet.solana.com \
+  --rpc-timeout 120
+```
+
+## Usage Examples
+
+### Initialize the System
+
+```typescript
+import { Program } from "@coral-xyz/anchor";
+import { Connection, Keypair } from "@solana/web3.js";
+
+// Initialize admin account
+const adminKeypair = Keypair.fromSecretKey(/* admin secret key */);
+const program = /* your program instance */;
+
+await program.methods
+  .initializeSystem()
+  .accounts({
+    user: adminKeypair.publicKey,
+    adminAccount: adminAccountPDA,
+    systemProgram: SystemProgram.programId,
+  })
+  .signers([adminKeypair])
+  .rpc();
+```
+
+### Initialize an NfNode
+
+```typescript
+await program.methods
+  .initializeNfnode(
+    new anchor.BN(hostShare), // e.g., 30 for 30%
+    nfnodeType // DON, BYOD, or WAYRU_HOTSPOT
+  )
+  .accounts({
+    userAdmin: adminKeypair.publicKey,
+    user: userKeypair.publicKey,
+    host: hostKeypair.publicKey,
+    manufacturer: manufacturerPubkey,
+    nftMintAddress: nftMint,
+    userNftTokenAccount: userNftTokenAccount,
+    nfnodeEntry: nfnodeEntryPDA,
+    adminAccount: adminAccountPDA,
+    tokenProgram2022: TOKEN_2022_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  })
+  .signers([userKeypair])
+  .rpc();
+```
+
+### Claim Rewards (Owner)
+
+```typescript
+// Build instruction
+const ix = await program.methods
+  .ownerClaimRewards(
+    new anchor.BN(rewardAmount),
+    new anchor.BN(nonce)
+  )
+  .accounts({
+    userAdmin: adminKeypair.publicKey,
+    user: userKeypair.publicKey,
+    nftMintAddress: nftMint,
+    rewardEntry: rewardEntryPDA,
+    nfnodeEntry: nfnodeEntryPDA,
+    tokenMint: tokenMint,
+    tokenStorageAuthority: tokenStorageAuthorityPDA,
+    tokenStorageAccount: tokenStorageAccountPDA,
+    userTokenAccount: userTokenAccount,
+    userNftTokenAccount: userNftTokenAccount,
+    adminAccount: adminAccountPDA,
+    tokenProgram2022: TOKEN_2022_PROGRAM_ID,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  })
+  .instruction();
+
+// Create transaction
+let tx = new anchor.web3.Transaction();
+tx.add(ix);
+tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+tx.feePayer = userKeypair.publicKey;
+
+// Admin partial sign
+tx.partialSign(adminKeypair);
+
+// Serialize without all signatures
+const serializedTx = tx.serialize({
+  requireAllSignatures: false,
+  verifySignatures: false,
+});
+
+// User signs
+const recoveredTx = anchor.web3.Transaction.from(
+  Buffer.from(serializedTx.toString("base64"), "base64")
+);
+recoveredTx.partialSign(userKeypair);
+
+// Send transaction
+const finalTx = recoveredTx.serialize({
+  requireAllSignatures: true,
+  verifySignatures: true,
+});
+
+const txId = await anchor.web3.sendAndConfirmRawTransaction(
+  connection,
+  finalTx,
+  { commitment: "confirmed" }
+);
+```
+
+### Fund Token Storage
+
+```typescript
+await program.methods
+  .fundTokenStorage(new anchor.BN(amount))
+  .accounts({
+    user: funderKeypair.publicKey,
+    tokenMint: tokenMint,
+    tokenStorageAuthority: tokenStorageAuthorityPDA,
+    tokenStorageAccount: tokenStorageAccountPDA,
+    userTokenAccount: funderTokenAccount,
+    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    tokenProgram: TOKEN_PROGRAM_ID,
+    systemProgram: SystemProgram.programId,
+  })
+  .signers([funderKeypair])
+  .rpc();
+```
 
 ## Program Instructions
 
-### `initialize_system`
+### System Management
+
+#### `initialize_system`
 
 Initializes the admin account for the reward system.
 
--   **Accounts:**
-    -   `user`: The signer, who will become the admin.
-    -   `admin_account`: The admin account PDA.
-    -   `system_program`: The Solana system program.
+**Accounts:**
+* `user` (signer): The signer who will become the admin
+* `admin_account` (PDA): The admin account PDA
+* `system_program`: Solana system program
 
-### `update_admin`
+#### `update_admin_request`
 
-Updates the admin's public key.
+Initiates an admin update request.
 
--   **Accounts:**
-    -   `user`: The current admin, who must sign the transaction.
-    -   `admin_account`: The admin account PDA.
--   **Arguments:**
-    -   `new_admin_pubkey`: The public key of the new admin.
+**Accounts:**
+* `user` (signer): Current admin
+* `admin_account` (PDA): Admin account PDA
 
-### `initialize_nfnode`
+**Arguments:**
+* `new_admin_pubkey`: Public key of the new admin
 
-Initializes a new NfNode entry.
+#### `accept_admin_request`
 
--   **Accounts:**
-    -   `user_admin`: The admin, who must partially sign the transaction.
-    -   `user`: The user initializing the NfNode, who pays for the account creation.
-    -   `host`: The host of the NfNode.
-    -   `manufacturer`: The manufacturer of the NfNode.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `admin_account`: The admin account PDA.
-    -   `token_program_2022`: The SPL Token 2022 program.
-    -   `system_program`: The Solana system program.
--   **Arguments:**
-    -   `host_share`: The share of rewards that the host will receive.
-    -   `nfnode_type`: The type of the NfNode (DON, BYOD, WAYRU_HOTSPOT).
+Accepts a pending admin update request.
 
-### `update_nfnode`
+**Accounts:**
+* `user` (signer): New admin
+* `admin_account` (PDA): Admin account PDA
+
+#### `pause_program`
+
+Pauses the program, preventing all reward claims.
+
+**Accounts:**
+* `user` (signer): Current admin
+* `admin_account` (PDA): Admin account PDA
+
+#### `unpause_program`
+
+Unpauses the program, resuming reward claims.
+
+**Accounts:**
+* `user` (signer): Current admin
+* `admin_account` (PDA): Admin account PDA
+
+### NfNode Management
+
+#### `initialize_nfnode`
+
+Initializes a new NfNode entry in the system.
+
+**Accounts:**
+* `user_admin` (partial signer): Admin
+* `user` (signer): User initializing the NfNode
+* `host`: Host of the NfNode
+* `manufacturer`: Manufacturer of the NfNode
+* `nft_mint_address`: NFT mint address
+* `user_nft_token_account`: User's NFT token account
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `admin_account` (PDA): Admin account PDA
+* `token_program_2022`: SPL Token 2022 program
+* `system_program`: Solana system program
+
+**Arguments:**
+* `host_share`: Reward share percentage for the host (0-100)
+* `nfnode_type`: Type of NfNode (DON, BYOD, WAYRU_HOTSPOT)
+
+#### `update_nfnode`
 
 Updates an existing NfNode entry.
 
--   **Accounts:**
-    -   `user_admin`: The admin, who must partially sign the transaction.
-    -   `user`: The user updating the NfNode.
-    -   `host`: The new host of the NfNode.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `admin_account`: The admin account PDA.
-    -   `token_program_2022`: The SPL Token 2022 program.
-    -   `system_program`: The Solana system program.
--   **Arguments:**
-    -   `host_share`: The updated share of rewards for the host.
+**Accounts:**
+* `user_admin` (partial signer): Admin
+* `user` (signer): User updating the NfNode
+* `host`: New host address
+* `nft_mint_address`: NFT mint address
+* `user_nft_token_account`: User's NFT token account
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `admin_account` (PDA): Admin account PDA
+* `token_program_2022`: SPL Token 2022 program
+* `system_program`: Solana system program
 
-### `fund_token_storage`
+**Arguments:**
+* `host_share`: Updated reward share for the host
+
+### Reward Operations
+
+#### `owner_claim_rewards`
+
+Allows NfNode owners to claim rewards.
+
+**Accounts:**
+* `user_admin` (partial signer): Admin
+* `user` (signer): User claiming rewards
+* `nft_mint_address`: NFT mint address
+* `reward_entry` (PDA): Reward entry PDA
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `token_mint`: Reward token mint
+* `token_storage_authority` (PDA): Token storage authority
+* `token_storage_account` (PDA): Token storage account
+* `user_token_account`: User's token account
+* `user_nft_token_account`: User's NFT token account
+* `admin_account` (PDA): Admin account PDA
+* `token_program_2022`: SPL Token 2022 program
+* `token_program`: SPL Token program
+* `associated_token_program`: Associated Token program
+* `system_program`: Solana system program
+
+**Arguments:**
+* `reward_amount`: Amount of tokens to claim
+* `nonce`: Unique nonce for this claim
+
+#### `others_claim_rewards`
+
+Allows hosts to claim their share of rewards.
+
+**Accounts:**
+* `user_admin` (partial signer): Admin
+* `user` (signer): Host claiming rewards
+* `nft_mint_address`: NFT mint address
+* `reward_entry` (PDA): Reward entry PDA
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `token_mint`: Reward token mint
+* `token_storage_authority` (PDA): Token storage authority
+* `token_storage_account` (PDA): Token storage account
+* `user_token_account`: Host's token account
+* `admin_account` (PDA): Admin account PDA
+* `token_program`: SPL Token program
+* `associated_token_program`: Associated Token program
+* `system_program`: Solana system program
+
+**Arguments:**
+* `reward_amount`: Amount of tokens to claim
+* `nonce`: Unique nonce for this claim
+
+### Token Management
+
+#### `fund_token_storage`
 
 Funds the token storage account with tokens.
 
--   **Accounts:**
-    -   `user`: The signer, who is funding the storage.
-    -   `token_mint`: The mint of the token being transferred.
-    -   `token_storage_authority`: The authority of the token storage PDA.
-    -   `token_storage_account`: The token storage account PDA.
-    -   `user_token_account`: The user's token account.
-    -   `associated_token_program`: The SPL Associated Token program.
-    -   `token_program`: The SPL Token program.
-    -   `system_program`: The Solana system program.
--   **Arguments:**
-    -   `amount`: The amount of tokens to transfer.
+**Accounts:**
+* `user` (signer): User funding the storage
+* `token_mint`: Token mint address
+* `token_storage_authority` (PDA): Token storage authority
+* `token_storage_account` (PDA): Token storage account
+* `user_token_account`: User's token account
+* `associated_token_program`: Associated Token program
+* `token_program`: SPL Token program
+* `system_program`: Solana system program
 
-### `owner_claim_rewards`
+**Arguments:**
+* `amount`: Amount of tokens to transfer
 
-Allows the owner of an NfNode to claim rewards.
+#### `deposit_tokens`
 
--   **Accounts:**
-    -   `user_admin`: The admin, who must partially sign the transaction.
-    -   `user`: The user claiming the rewards.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `reward_entry`: The reward entry PDA for the user and NFT.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `token_mint`: The mint of the reward token.
-    -   `token_storage_authority`: The authority of the token storage PDA.
-    -   `token_storage_account`: The token storage account PDA.
-    -   `user_token_account`: The user's token account where rewards will be sent.
-    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
-    -   `admin_account`: The admin account PDA.
-    -   `token_program_2022`: The SPL Token 2022 program.
-    -   `token_program`: The SPL Token program.
-    -   `associated_token_program`: The SPL Associated Token program.
-    -   `system_program`: The Solana system program.
--   **Arguments:**
-    -   `reward_amount`: The amount of rewards to claim.
-    -   `nonce`: A unique number for the claim.
+Deposits tokens into the token storage (for NfNode initialization).
 
-### `others_claim_rewards`
+**Accounts:**
+* `user` (signer): User depositing tokens
+* `token_mint`: Token mint address
+* `nft_mint_address`: NFT mint address
+* `user_nft_token_account`: User's NFT token account
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `admin_account` (PDA): Admin account PDA
+* `token_storage_authority` (PDA): Token storage authority
+* `token_storage_account` (PDA): Token storage account
+* `user_token_account`: User's token account
+* `associated_token_program`: Associated Token program
+* `token_program`: SPL Token program
+* `system_program`: Solana system program
 
-Allows the host to claim rewards.
+#### `withdraw_tokens`
 
--   **Accounts:**
-    -   `user_admin`: The admin, who must partially sign the transaction.
-    -   `user`: The user (host) claiming the rewards.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `reward_entry`: The reward entry PDA for the user and NFT.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `token_mint`: The mint of the reward token.
-    -   `token_storage_authority`: The authority of the token storage PDA.
-    -   `token_storage_account`: The token storage account PDA.
-    -   `user_token_account`: The user's token account where rewards will be sent.
-    -   `admin_account`: The admin account PDA.
-    -   `token_program`: The SPL Token program.
-    -   `associated_token_program`: The SPL Associated Token program.
-    -   `system_program`: The Solana system program.
--   **Arguments:**
-    -   `reward_amount`: The amount of rewards to claim.
-    -   `nonce`: A unique number for the claim.
+Withdraws tokens from the token storage (after required period).
 
-### `pause_program`
+**Accounts:**
+* `user` (signer): User withdrawing tokens
+* `token_mint`: Token mint address
+* `nft_mint_address`: NFT mint address
+* `user_nft_token_account`: User's NFT token account
+* `nfnode_entry` (PDA): NfNode entry PDA
+* `admin_account` (PDA): Admin account PDA
+* `token_storage_authority` (PDA): Token storage authority
+* `token_storage_account` (PDA): Token storage account
+* `user_token_account`: User's token account
+* `associated_token_program`: Associated Token program
+* `token_program`: SPL Token program
+* `system_program`: Solana system program
 
-Pauses the program, preventing reward claims.
+### Mint Authority Management
 
--   **Accounts:**
-    -   `user`: The admin, who must sign the transaction.
-    -   `admin_account`: The admin account PDA.
+#### `add_mint_authority`
 
-### `unpause_program`
+Adds a new mint authority to the system.
 
-Unpauses the program, allowing reward claims.
+**Accounts:**
+* `user` (signer): Admin
+* `admin_account` (PDA): Admin account PDA
 
--   **Accounts:**
-    -   `user`: The admin, who must sign the transaction.
-    -   `admin_account`: The admin account PDA.
+**Arguments:**
+* `new_mint_authority`: Public key of the new mint authority
 
-### `deposit_tokens`
+#### `remove_mint_authority`
 
-Deposits tokens into the token storage account.
+Removes a mint authority from the system.
 
--   **Accounts:**
-    -   `user`: The signer, who is depositing the tokens.
-    -   `token_mint`: The mint of the token being deposited.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `admin_account`: The admin account PDA.
-    -   `token_storage_authority`: The authority of the token storage PDA.
-    -   `token_storage_account`: The token storage account PDA.
-    -   `user_token_account`: The user's token account.
-    -   `associated_token_program`: The SPL Associated Token program.
-    -   `token_program`: The SPL Token program.
-    -   `system_program`: The Solana system program.
+**Accounts:**
+* `user` (signer): Admin
+* `admin_account` (PDA): Admin account PDA
 
-### `withdraw_tokens`
-
-Withdraws tokens from the token storage account.
-
--   **Accounts:**
-    -   `user`: The signer, who is withdrawing the tokens.
-    -   `token_mint`: The mint of the token being withdrawn.
-    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
-    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
-    -   `nfnode_entry`: The NfNode entry PDA.
-    -   `admin_account`: The admin account PDA.
-    -   `token_storage_authority`: The authority of the token storage PDA.
-    -   `token_storage_account`: The token storage account PDA.
-    -   `user_token_account`: The user's token account.
-    -   `associated_token_program`: The SPL Associated Token program.
-    -   `token_program`: The SPL Token program.
-    -   `system_program`: The Solana system program.
+**Arguments:**
+* `mint_authority`: Public key of the mint authority to remove
 
 ## Security Considerations
 
--   **Admin Partial Signature:** The requirement for an admin's partial signature adds a layer of security to reward claims. It ensures that rewards cannot be claimed without the admin's approval.
--   **Nonce Handling:** The use of nonces prevents replay attacks. Each nonce must be unique and greater than the previously used nonce for a given user and NFT.
--   **Daily Claim Limit:** The daily claim limit prevents users from draining the reward pool too quickly and ensures a fair distribution of rewards.
--   **Program Pausing:** The ability to pause the program allows admins to halt reward claims in case of emergencies or maintenance.
+### Admin Partial Signatures
+
+All reward claim transactions require a partial signature from an administrator. This ensures:
+* Rewards cannot be claimed without admin approval
+* Admin maintains control over reward distribution
+* Protection against unauthorized claims
+
+### Nonce System
+
+The nonce-based system prevents replay attacks:
+* Each claim must use a unique, incrementing nonce
+* Nonces are tracked per user and NFT combination
+* Prevents duplicate claim attempts
+
+### Daily Claim Limits
+
+Users can claim rewards only once per day:
+* Prevents rapid draining of reward pools
+* Ensures fair distribution
+* Timestamp-based validation
+
+### Program Pausing
+
+Administrators can pause the program:
+* Emergency stop mechanism
+* Maintenance capability
+* Prevents claims during critical updates
+
+### NFT Ownership Verification
+
+Reward claims require NFT ownership verification:
+* Users must hold the associated NFT
+* Prevents unauthorized claims
+* Token account balance checks
 
 ## Error Handling
 
-The program defines the following custom error codes:
+The program defines comprehensive error codes for various failure scenarios:
 
--   `UnauthorizedAdmin`: Returned when an unauthorized user attempts to perform an admin-only action.
--   `MissingAdminSignature`: Returned when a transaction requiring the admin's partial signature is not signed by the admin.
--   `NonceAlreadyClaimed`: Returned when a user attempts to claim rewards with a nonce that has already been used.
--   `ProgramPaused`: Returned when a user attempts to claim rewards while the program is paused.
--   `ClaimAlreadyMadeToday`: Returned when a user attempts to claim rewards more than once in a day.
--   `ArithmeticOverflow`: Returned when an arithmetic operation results in an overflow.
--   `InvalidNftMint`: Returned when an invalid NFT mint address is provided.
--   `InsufficientNftBalance`: Returned when the user's NFT balance is insufficient.
--   `InvalidNfNodeEntry`: Returned when an invalid NfNode entry is provided.
--   `InvalidMint`: Returned when an invalid token mint address is provided.
--   `InvalidFundingAmount`: Returned when the funding amount is zero or negative.
--   `DepositAlreadyMade`: Returned when a deposit has already been made for the NfNode.
--   `WithdrawAlreadyMade`: Returned when a withdrawal has already been made for the NfNode.
--   `WithdrawTooEarly`: Returned when a withdrawal is attempted before the allowed period.
+| Error Code | Description |
+|------------|-------------|
+| `UnauthorizedAdmin` | Unauthorized user attempted admin action |
+| `MissingAdminSignature` | Transaction missing required admin signature |
+| `NonceAlreadyClaimed` | Nonce has already been used |
+| `ProgramPaused` | Program is currently paused |
+| `ClaimAlreadyMadeToday` | User already claimed rewards today |
+| `ArithmeticOverflow` | Arithmetic operation resulted in overflow |
+| `InvalidNftMint` | Invalid NFT mint address provided |
+| `InsufficientNftBalance` | User doesn't own the required NFT |
+| `InvalidNfNodeEntry` | Invalid NfNode entry provided |
+| `InvalidMint` | Invalid token mint address |
+| `InvalidFundingAmount` | Funding amount is zero or negative |
+| `DepositAlreadyMade` | Deposit already made for this NfNode |
+| `WithdrawAlreadyMade` | Withdrawal already made for this NfNode |
+| `WithdrawTooEarly` | Withdrawal attempted before allowed period |
+| `AlreadyPaused` | Program is already paused |
+| `AlreadyRunning` | Program is already running |
+
+## Contributing
+
+This project is now open source and welcomes contributions from the community. Since WAYRU is no longer operating, there is no official support, but the community can maintain and improve this project.
+
+### How to Contribute
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+
+* Follow Rust and TypeScript best practices
+* Write comprehensive tests for new features
+* Update documentation for API changes
+* Ensure all tests pass before submitting PRs
+
+## License
+
+This project is open source. Please check the repository for specific license information.
 
 ## Acknowledgments
 
--   [Solana](https://solana.com/)
--   [Anchor](https://project-serum.github.io/anchor/)
+* [Solana](https://solana.com/) - The blockchain platform
+* [Anchor](https://www.anchor-lang.com/) - The Solana framework
+* [SPL Token](https://spl.solana.com/token) - Token program library
 
-## Deploying the Program
+---
 
-Follow these steps to deploy the Solana program:
+## 💙 Farewell Message
 
-### 1. Clean the Anchor Project
-```bash
-anchor clean
-```
+With gratitude and love, we say goodbye.
 
-### 2. Remove Old Keypair Files (if needed)
-```bash
-rm -f program-keypair.json
-```
+WAYRU is closing its doors, but we are leaving these repositories open and free for the community.
 
-### 3. Configure Network
-```bash
-solana config set --url devnet
-```
+May they continue to inspire builders, dreamers, and innovators.
 
-### 4. Create a New Program Keypair
-```bash
-mkdir -p target/deploy && solana-keygen new -o target/deploy/reward_system-keypair.json --force
-```
+With love, 
+WAYRU
 
-### 5. Update Program ID in Code
-Replace the program ID in your code with the newly generated one:
+---
 
-```rust
-// In lib.rs
-declare_id!("YOUR_NEW_ID_HERE"); // Replace with the new address you generated
-```
-
-```toml
-# In Anchor.toml
-[programs.devnet]
-nfnode_rewards = "YOUR_NEW_ID_HERE"
-```
-
-### 6. Clean the Project Again
-```bash
-anchor clean
-```
-
-### 7. Build the Program
-```bash
-anchor build
-```
-
-### 8. Deploy the Program
-```bash
-anchor deploy --program-name reward_system --provider.cluster devnet --program-keypair target/deploy/reward_system-keypair.json
-```
-
-### 9. Deploy IDL
-```bash
-anchor idl init \
---provider.cluster devnet \
-YOUR_NEW_ID_HERE \
--f target/idl/reward_system.json
-```
-
-### 10. (Optional) Close Buffers to Recover SOL
-If you want to recover SOL from deployment buffers:
-```bash
-solana program close --buffers --url https://api.devnet.solana.com --rpc-timeout 120 --skip-fee-check
-```
-This command closes all program buffers and returns the rent to your wallet. This is safe to do after deployment and doesn't affect your deployed program.
-
-### Notes
-- Make sure you have sufficient SOL in your wallet for deployment, approximately 6 SOL
-- The deployment process may take several minutes depending on the program size
-- Keep your program keypair secure as it's required for future updates
+**Note**: This project is now **open source** and available for the community to use, modify, and improve. WAYRU no longer exists and will not provide support, maintenance, or updates. The community is welcome to fork, modify, and maintain this codebase as needed.
