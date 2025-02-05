@@ -86,6 +86,13 @@ pub mod reward_system {
     pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
         instructions::withdraw_tokens(ctx)
     }
+    pub fn add_mint_authority(ctx: Context<AddMintAuthority>, new_mint_authority: Pubkey) -> Result<()> {
+        instructions::add_mint_authority(ctx, new_mint_authority)
+    }
+
+    pub fn remove_mint_authority(ctx: Context<RemoveMintAuthority>, mint_authority: Pubkey) -> Result<()> {
+        instructions::remove_mint_authority(ctx, mint_authority)
+    }
 }
 pub struct NfnodeRewards;
 

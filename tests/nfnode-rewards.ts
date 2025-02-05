@@ -20,7 +20,9 @@ import {
   othersClaimRewards,
   acceptAdmin,
   depositTokens,
-  withdrawTokens
+  withdrawTokens,
+  addMintAuthority,
+  removeMintAuthority
 } from "./actions";
 
 describe("nfnode-rewards", async () => {
@@ -77,6 +79,22 @@ describe("nfnode-rewards", async () => {
   });
   it("Accept admin request", async () => {
     await acceptAdmin(program, adminKeypair, adminAccountPDA);
+  });
+  it("Add mint authority", async () => {
+    const newMintAuthority = Keypair.generate().publicKey;
+    await addMintAuthority(program, adminKeypair, newMintAuthority, adminAccountPDA);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.include(newMintAuthority.toBase58());
+  });
+
+  it("Remove mint authority", async () => {
+    const adminAccountStatePrev = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorityToRemove = adminAccountStatePrev.mintAuthorities[1];
+    await removeMintAuthority(program, adminKeypair, mintAuthorityToRemove);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.not.include(mintAuthorityToRemove.toBase58());
   });
   it("Initialize Nfnode byod", async () => {
     let error = null;
