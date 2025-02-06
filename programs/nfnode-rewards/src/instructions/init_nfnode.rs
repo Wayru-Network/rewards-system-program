@@ -50,7 +50,7 @@ pub fn initialize_nfnode(
 
     // Validate the ownership of the user_nft_token_account
     require!(derived_ata == *user_nft_token_account_info.key, RewardError::InvalidNftTokenAccount);
-    let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
+    let user_nft_token_account_data = &user_nft_token_account_info.try_borrow_data()?;
     let user_nft_token_account = SplToken2022Account::try_deserialize(
         &mut &user_nft_token_account_data[..]
     )?;
@@ -64,8 +64,8 @@ pub fn initialize_nfnode(
     }
     //validate if nft has valid mint authority
     let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
-    let metadata_account_data = metadata_account_info.try_borrow_data()?;
-    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let metadata_account_data = &metadata_account_info.try_borrow_data()?;
+    let mint = &Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
     let mint_authority = mint.mint_authority.unwrap();
     require!(
         admin_account.mint_authorities.contains(&mint_authority),
@@ -132,8 +132,7 @@ pub struct InitializeNfNode<'info> {
     )]
     pub token_storage_account: Box<Account<'info, TokenAccount>>,
     #[account(
-        init_if_needed,
-        payer = user,
+        mut,
         associated_token::mint = token_mint,
         associated_token::authority = user,
     )]
