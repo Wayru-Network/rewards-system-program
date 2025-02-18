@@ -7,8 +7,8 @@ use solana_program::{ pubkey::Pubkey };
 mod errors;
 mod instructions;
 mod state;
-use crate::{ errors::* };
-declare_id!("6vhUweVYdxcq6yeo7WZgKRxCHy3iUxUXrtbmdfZ3notP");
+use crate::{ errors::*, state::{ NfNodeType } };
+declare_id!("EqeqjHyJTsmnVFCs3rnUEKSgvYBtjXa5ujJueiexWLHp");
 
 #[program]
 pub mod reward_system {
@@ -26,8 +26,12 @@ pub mod reward_system {
         instructions::accept_admin_request(ctx)
     }
 
-    pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Result<()> {
-        instructions::initialize_nfnode(ctx, host_share)
+    pub fn initialize_nfnode(
+        ctx: Context<InitializeNfNode>,
+        host_share: u64,
+        nfnode_type: NfNodeType
+    ) -> Result<()> {
+        instructions::initialize_nfnode(ctx, host_share, nfnode_type)
     }
     pub fn update_nfnode(ctx: Context<UpdateNfNode>, host_share: u64) -> Result<()> {
         instructions::update_nfnode(ctx, host_share)
@@ -75,6 +79,19 @@ pub mod reward_system {
         require!(admin_account.paused == true, RewardError::AlreadyRunning);
         admin_account.paused = false;
         Ok(())
+    }
+    pub fn deposit_tokens(ctx: Context<DepositTokens>) -> Result<()> {
+        instructions::deposit_tokens(ctx)
+    }
+    pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
+        instructions::withdraw_tokens(ctx)
+    }
+    pub fn add_mint_authority(ctx: Context<AddMintAuthority>, new_mint_authority: Pubkey) -> Result<()> {
+        instructions::add_mint_authority(ctx, new_mint_authority)
+    }
+
+    pub fn remove_mint_authority(ctx: Context<RemoveMintAuthority>, mint_authority: Pubkey) -> Result<()> {
+        instructions::remove_mint_authority(ctx, mint_authority)
     }
 }
 pub struct NfnodeRewards;

@@ -17,6 +17,7 @@ This program allows administrators to establish a reward system, fund it with to
 -   **Token Transfers:** The program facilitates token transfers from a designated storage account to the user's token account.
 -   **NfNode Management:** The program allows for the initialization and updating of NfNode entries, including host information and reward shares.
 -   **Host Rewards:** Hosts of NfNodes can claim rewards based on their share.
+-   **Token Deposit and Withdrawal:** Users can deposit tokens when initializing NfNodes (except for DON types) and withdraw tokens after a specified period.
 
 ## Getting Started
 
@@ -226,6 +227,7 @@ Initializes a new NfNode entry.
     -   `system_program`: The Solana system program.
 -   **Arguments:**
     -   `host_share`: The share of rewards that the host will receive.
+    -   `nfnode_type`: The type of the NfNode (DON, BYOD, WAYRU_HOTSPOT).
 
 ### `update_nfnode`
 
@@ -322,6 +324,42 @@ Unpauses the program, allowing reward claims.
     -   `user`: The admin, who must sign the transaction.
     -   `admin_account`: The admin account PDA.
 
+### `deposit_tokens`
+
+Deposits tokens into the token storage account.
+
+-   **Accounts:**
+    -   `user`: The signer, who is depositing the tokens.
+    -   `token_mint`: The mint of the token being deposited.
+    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
+    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
+    -   `nfnode_entry`: The NfNode entry PDA.
+    -   `admin_account`: The admin account PDA.
+    -   `token_storage_authority`: The authority of the token storage PDA.
+    -   `token_storage_account`: The token storage account PDA.
+    -   `user_token_account`: The user's token account.
+    -   `associated_token_program`: The SPL Associated Token program.
+    -   `token_program`: The SPL Token program.
+    -   `system_program`: The Solana system program.
+
+### `withdraw_tokens`
+
+Withdraws tokens from the token storage account.
+
+-   **Accounts:**
+    -   `user`: The signer, who is withdrawing the tokens.
+    -   `token_mint`: The mint of the token being withdrawn.
+    -   `nft_mint_address`: The mint address of the NFT associated with the NfNode.
+    -   `user_nft_token_account`: The user's token account for the NFT, used to verify ownership.
+    -   `nfnode_entry`: The NfNode entry PDA.
+    -   `admin_account`: The admin account PDA.
+    -   `token_storage_authority`: The authority of the token storage PDA.
+    -   `token_storage_account`: The token storage account PDA.
+    -   `user_token_account`: The user's token account.
+    -   `associated_token_program`: The SPL Associated Token program.
+    -   `token_program`: The SPL Token program.
+    -   `system_program`: The Solana system program.
+
 ## Security Considerations
 
 -   **Admin Partial Signature:** The requirement for an admin's partial signature adds a layer of security to reward claims. It ensures that rewards cannot be claimed without the admin's approval.
@@ -342,6 +380,11 @@ The program defines the following custom error codes:
 -   `InvalidNftMint`: Returned when an invalid NFT mint address is provided.
 -   `InsufficientNftBalance`: Returned when the user's NFT balance is insufficient.
 -   `InvalidNfNodeEntry`: Returned when an invalid NfNode entry is provided.
+-   `InvalidMint`: Returned when an invalid token mint address is provided.
+-   `InvalidFundingAmount`: Returned when the funding amount is zero or negative.
+-   `DepositAlreadyMade`: Returned when a deposit has already been made for the NfNode.
+-   `WithdrawAlreadyMade`: Returned when a withdrawal has already been made for the NfNode.
+-   `WithdrawTooEarly`: Returned when a withdrawal is attempted before the allowed period.
 
 ## Acknowledgments
 
