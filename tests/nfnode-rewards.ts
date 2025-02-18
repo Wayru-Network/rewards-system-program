@@ -72,7 +72,15 @@ describe("nfnode-rewards", async () => {
   });
 
   it("Initialize Reward System", async () => {
-    await initializeSystem(program, deployerKeypair, mint, adminKeypair);
+    let error=null;
+    try {
+      await initializeSystem(program, deployerKeypair, mint, adminKeypair);
+      
+    } catch (e) {
+      console.log(e)
+      error = e
+    }
+    expect(error).to.be.null;
   });
   it("Update admin request", async () => {
     await updateAdmin(program, adminKeypair, deployerKeypair, adminAccountPDA);
@@ -80,14 +88,14 @@ describe("nfnode-rewards", async () => {
   it("Accept admin request", async () => {
     await acceptAdmin(program, adminKeypair, adminAccountPDA);
   });
-  it("Add mint authority", async () => {
+  it("Add mint authority to be removed", async () => {
     const newMintAuthority = Keypair.generate().publicKey;
     await addMintAuthority(program, adminKeypair, newMintAuthority, adminAccountPDA);
     const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
     const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
     expect(mintAuthorities).to.include(newMintAuthority.toBase58());
   });
-
+  
   it("Remove mint authority", async () => {
     const adminAccountStatePrev = await program.account.adminAccount.fetch(adminAccountPDA);
     const mintAuthorityToRemove = adminAccountStatePrev.mintAuthorities[1];
@@ -95,6 +103,13 @@ describe("nfnode-rewards", async () => {
     const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
     const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
     expect(mintAuthorities).to.not.include(mintAuthorityToRemove.toBase58());
+  });
+  it("Add final mint authority", async () => {
+    const newMintAuthority = adminKeypair.publicKey;
+    await addMintAuthority(program, adminKeypair, newMintAuthority, adminAccountPDA);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.include(newMintAuthority.toBase58());
   });
   it("Initialize Nfnode byod", async () => {
     let error = null;

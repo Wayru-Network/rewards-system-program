@@ -20,7 +20,7 @@ export async function initializeSystem(
       user: deployerKeypair.publicKey,
       programData: programDataAddress,
       tokenMint,
-      mintAuthority: adminKeypair.publicKey
+      mintAuthority: deployerKeypair.publicKey
     })
     .signers([deployerKeypair])
     .rpc({ commitment: 'confirmed' });
