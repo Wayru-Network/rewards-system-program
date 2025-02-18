@@ -6,7 +6,11 @@ mod owner_claim_rewards;
 mod others_claim_rewards;
 mod deposit_tokens;
 mod withdraw_tokens;
+mod add_mint_authority;
+mod remove_mint_authority;
 
+pub use add_mint_authority::*;
+pub use remove_mint_authority::*;
 pub use init_system::*;
 pub use update_admin::*;
 pub use init_nfnode::*;

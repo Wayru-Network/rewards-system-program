@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
-    associated_token::{ AssociatedToken },
+    associated_token::AssociatedToken,
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
     token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
@@ -25,7 +25,13 @@ pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
     let nft_mint_account_info = &ctx.accounts.nft_mint_address.to_account_info();
     let nft_mint_account_data = nft_mint_account_info.try_borrow_data()?;
     let nft_mint_account = Mint2022::try_deserialize(&mut &nft_mint_account_data[..])?;
-
+    
+    //validate if nft has valid mint authority
+    let mint_authority = nft_mint_account.mint_authority.unwrap();
+    require!(
+        admin_account.mint_authorities.contains(&mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
     // Validate that the total supply is 1
     require!(nft_mint_account.supply == 1, RewardError::InvalidNftSupply);
 

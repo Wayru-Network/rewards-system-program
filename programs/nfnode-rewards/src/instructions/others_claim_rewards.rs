@@ -52,6 +52,15 @@ pub fn others_claim_rewards(
                 current_day > manufacturer_last_claim_day_nfnode_entry),
         RewardError::ClaimAlreadyMadeToday
     );
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority.unwrap();
+    require!(
+        admin_account.mint_authorities.contains(&mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
 
     reward_entry.last_claimed_nonce = nonce;
     reward_entry.last_claimed_timestamp = current_timestamp;

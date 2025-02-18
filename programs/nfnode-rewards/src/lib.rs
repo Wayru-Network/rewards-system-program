@@ -8,7 +8,7 @@ mod errors;
 mod instructions;
 mod state;
 use crate::{ errors::*, state::{ NfNodeType } };
-declare_id!("6vhUweVYdxcq6yeo7WZgKRxCHy3iUxUXrtbmdfZ3notP");
+declare_id!("EqeqjHyJTsmnVFCs3rnUEKSgvYBtjXa5ujJueiexWLHp");
 
 #[program]
 pub mod reward_system {
@@ -85,6 +85,13 @@ pub mod reward_system {
     }
     pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
         instructions::withdraw_tokens(ctx)
+    }
+    pub fn add_mint_authority(ctx: Context<AddMintAuthority>, new_mint_authority: Pubkey) -> Result<()> {
+        instructions::add_mint_authority(ctx, new_mint_authority)
+    }
+
+    pub fn remove_mint_authority(ctx: Context<RemoveMintAuthority>, mint_authority: Pubkey) -> Result<()> {
+        instructions::remove_mint_authority(ctx, mint_authority)
     }
 }
 pub struct NfnodeRewards;
