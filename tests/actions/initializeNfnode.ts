@@ -12,10 +12,12 @@ export async function initializeNfnode(
   user2Keypair: Keypair,
   nftMint: PublicKey,
   userNFTTokenAccount: PublicKey,
-  nfnodeEntryPDA: PublicKey
+  nfnodeEntryPDA: PublicKey,
+  tokenMint: PublicKey,
+  nfnodeType: { don: {} } | { byod: {} } | { wayruHotspot: {} }
 ) {
   await program.methods
-    .initializeNfnode(new anchor.BN(0))
+    .initializeNfnode(new anchor.BN(0), nfnodeType) // Pass the enum as an object
     .accounts({
       userAdmin: adminKeypair.publicKey,
       user: userKeypair.publicKey,
@@ -24,6 +26,7 @@ export async function initializeNfnode(
       manufacturer: user2Keypair.publicKey,
       tokenProgram2022: TOKEN_2022_PROGRAM_ID,
       userNftTokenAccount: userNFTTokenAccount,
+      tokenMint,
     })
     .signers([adminKeypair, userKeypair])
     .rpc({ commitment: "confirmed" });

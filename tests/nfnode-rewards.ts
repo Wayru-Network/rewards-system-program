@@ -17,7 +17,12 @@ import {
   ownerClaimRewards,
   pauseProgram,
   unpauseProgram,
-  othersClaimRewards
+  othersClaimRewards,
+  acceptAdmin,
+  depositTokens,
+  withdrawTokens,
+  addMintAuthority,
+  removeMintAuthority
 } from "./actions";
 
 describe("nfnode-rewards", async () => {
@@ -30,11 +35,14 @@ describe("nfnode-rewards", async () => {
   let adminKeypair: Keypair,
     userKeypair: Keypair,
     user2Keypair: Keypair,
+    deployerKeypair: Keypair,
     mint: PublicKey,
     nftMint: PublicKey,
+    nft2Mint: PublicKey,
     adminTokenAccount: PublicKey,
     userTokenAccount: PublicKey,
     userNFTTokenAccount: PublicKey,
+    userNFT2TokenAccount: PublicKey,
     user2NFTTokenAccount: PublicKey,
     user2TokenAccount: PublicKey,
     tokenStoragePDA: PublicKey,
@@ -47,6 +55,7 @@ describe("nfnode-rewards", async () => {
       adminKeypair,
       userKeypair,
       user2Keypair,
+      deployerKeypair,
       mint,
       nftMint,
       adminTokenAccount,
@@ -57,27 +66,83 @@ describe("nfnode-rewards", async () => {
       tokenStoragePDA,
       adminAccountPDA,
       nfnodeEntryPDA,
+      nft2Mint,
+      userNFT2TokenAccount,
     } = setupResult);
   });
 
   it("Initialize Reward System", async () => {
-    await initializeSystem(program, adminKeypair);
+    let error=null;
+    try {
+      await initializeSystem(program, deployerKeypair, mint, adminKeypair);
+      
+    } catch (e) {
+      console.log(e)
+      error = e
+    }
+    expect(error).to.be.null;
   });
-
-  it("Initialize Nfnode", async () => {
-    await initializeNfnode(
-      program,
-      adminKeypair,
-      userKeypair,
-      user2Keypair,
-      nftMint,
-      userNFTTokenAccount,
-      nfnodeEntryPDA
-    );
+  it("Update admin request", async () => {
+    await updateAdmin(program, adminKeypair, deployerKeypair, adminAccountPDA);
   });
+  it("Accept admin request", async () => {
+    await acceptAdmin(program, adminKeypair, adminAccountPDA);
+  });
+  it("Add mint authority to be removed", async () => {
+    const newMintAuthority = Keypair.generate().publicKey;
+    await addMintAuthority(program, adminKeypair, newMintAuthority, adminAccountPDA);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.include(newMintAuthority.toBase58());
+  });
+  
+  it("Remove mint authority", async () => {
+    const adminAccountStatePrev = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorityToRemove = adminAccountStatePrev.mintAuthorities[1];
+    await removeMintAuthority(program, adminKeypair, mintAuthorityToRemove);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.not.include(mintAuthorityToRemove.toBase58());
+  });
+  it("Add final mint authority", async () => {
+    const newMintAuthority = adminKeypair.publicKey;
+    await addMintAuthority(program, adminKeypair, newMintAuthority, adminAccountPDA);
+    const adminAccountState = await program.account.adminAccount.fetch(adminAccountPDA);
+    const mintAuthorities = adminAccountState.mintAuthorities.map((mintAuthority) => mintAuthority.toBase58());
+    expect(mintAuthorities).to.include(newMintAuthority.toBase58());
+  });
+  it("Initialize Nfnode byod", async () => {
+    let error = null;
+    try {
+      await initializeNfnode(
+        program,
+        adminKeypair,
+        userKeypair,
+        user2Keypair,
+        nftMint,
+        userNFTTokenAccount,
+        nfnodeEntryPDA,
+        mint,
+        { byod: {} }
+      );
+    } catch (e) {
+      console.log(e)
+      error = e
+    }
+    expect(error).to.be.null;
+    // expect(claimError.message).to.include("Deposit already made.");
 
-  it("Update admin", async () => {
-    await updateAdmin(program, adminKeypair);
+  });
+  it("Attempt to Deposit twice (should fail)", async () => {
+    let claimError = null;
+    try {
+      await depositTokens(program, userKeypair, mint, nftMint, userNFTTokenAccount);
+    } catch (error) {
+      claimError = error;
+    }
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Deposit already made.");
+
   });
 
   it("Should update nfnode entry", async () => {
@@ -92,6 +157,19 @@ describe("nfnode-rewards", async () => {
     );
   });
 
+  it("Initialize Nfnode DON", async () => {
+    await initializeNfnode(
+      program,
+      adminKeypair,
+      userKeypair,
+      user2Keypair,
+      nft2Mint,
+      userNFT2TokenAccount,
+      nfnodeEntryPDA,
+      mint,
+      { don: {} }
+    );
+  });
   it("Fund Token Storage", async () => {
     await fundTokenStorage(program, adminKeypair, mint, new anchor.BN(500000000));
   });
@@ -149,6 +227,49 @@ describe("nfnode-rewards", async () => {
   it("Unpause Program", async () => {
     await unpauseProgram(program, adminKeypair, adminAccountPDA);
   });
+  it("Attempt Withdraw  with no nft (should fail)", async () => {
+    let claimError = null;
+    try {
+      await withdrawTokens(program, user2Keypair, mint, nftMint, user2NFTTokenAccount);
+    } catch (error) {
+      claimError = error;
+    }
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Insufficient NFT balance.");
+
+  });
+  it("Attempt Withdraw  with no nft 2 (should fail)", async () => {
+    let claimError = null;
+    try {
+      await withdrawTokens(program, user2Keypair, mint, nftMint, userNFTTokenAccount);
+    } catch (error) {
+      claimError = error;
+    }
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Invalid Nft token account.");
+
+  });
+  it("Attempt Withdraw  with worng token mint address (should fail)", async () => {
+    let claimError = null;
+    try {
+      await withdrawTokens(program, userKeypair, nftMint, nftMint, userNFTTokenAccount);
+    } catch (error) {
+      claimError = error;
+    }
+    expect(claimError).to.not.be.null;
+
+  });
+  it("Attempt Withdraw  after unpaused and before 30 days (should fail)", async () => {
+    let claimError = null;
+    try {
+      await withdrawTokens(program, userKeypair, mint, nftMint, userNFTTokenAccount);
+    } catch (error) {
+      claimError = error;
+    }
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Withdraw too early.");
+
+  });
 
   it("Attempt to Claim Rewards With no nft (should fail)", async () => {
     let claimError = null;
@@ -170,6 +291,28 @@ describe("nfnode-rewards", async () => {
 
     expect(claimError).to.not.be.null;
     expect(claimError.message).to.include("Insufficient NFT balance.");
+  });
+  it("Attempt Unauthorized Reward Claim (should fail)", async () => {
+    let claimError = null;
+    try {
+      await ownerClaimRewards(
+        program,
+        provider,
+        adminKeypair,
+        user2Keypair, // Alice's keypair
+        mint,
+        nftMint,
+        userNFTTokenAccount, // Tom's NFT token account (maliciously used)
+        new anchor.BN(100000000),
+        new anchor.BN(32349) // Unique nonce
+      );
+    } catch (error) {
+      claimError = error;
+    }
+
+    //Assert that the claim failed
+    expect(claimError).to.not.be.null;
+    expect(claimError.message).to.include("Invalid Nft token account.");
   });
 
   it("Claim Rewards After Unpausing (should succeed)", async () => {

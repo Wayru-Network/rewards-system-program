@@ -7,8 +7,8 @@ use solana_program::{ pubkey::Pubkey };
 mod errors;
 mod instructions;
 mod state;
-use crate::{ errors::* };
-declare_id!("EqDpek5j4p6iDY16gGhgLof3dgWYykTnmi7J3oau6dSh");
+use crate::{ errors::*, state::{ NfNodeType } };
+declare_id!("EqeqjHyJTsmnVFCs3rnUEKSgvYBtjXa5ujJueiexWLHp");
 
 #[program]
 pub mod reward_system {
@@ -19,18 +19,28 @@ pub mod reward_system {
         instructions::initialize_system(ctx)
     }
 
-    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
-        instructions::update_admin(ctx, new_admin_pubkey)
+    pub fn update_admin_request(ctx: Context<UpdateAdmin>, new_admin_pubkey: Pubkey) -> Result<()> {
+        instructions::update_admin_request(ctx, new_admin_pubkey)
+    }
+    pub fn accept_admin_request(ctx: Context<UpdateAdmin>) -> Result<()> {
+        instructions::accept_admin_request(ctx)
     }
 
-    pub fn initialize_nfnode(ctx: Context<InitializeNfNode>, host_share: u64) -> Result<()> {
-        instructions::initialize_nfnode(ctx, host_share)
+    pub fn initialize_nfnode(
+        ctx: Context<InitializeNfNode>,
+        host_share: u64,
+        nfnode_type: NfNodeType
+    ) -> Result<()> {
+        instructions::initialize_nfnode(ctx, host_share, nfnode_type)
     }
     pub fn update_nfnode(ctx: Context<UpdateNfNode>, host_share: u64) -> Result<()> {
         instructions::update_nfnode(ctx, host_share)
     }
 
     pub fn fund_token_storage(ctx: Context<FundTokenStorage>, amount: u64) -> Result<()> {
+        // Validate that the amount is greater than zero
+        require!(amount > 0, RewardError::InvalidFundingAmount);
+
         token::transfer(ctx.accounts.transfer_to_token_storage(), amount)?;
         Ok(())
     }
@@ -55,6 +65,7 @@ pub mod reward_system {
             ctx.accounts.user.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
         );
+        require!(admin_account.paused == false, RewardError::AlreadyPaused);
         admin_account.paused = true;
         Ok(())
     }
@@ -65,8 +76,32 @@ pub mod reward_system {
             ctx.accounts.user.key() == admin_account.admin_pubkey,
             RewardError::UnauthorizedAdmin
         );
+        require!(admin_account.paused == true, RewardError::AlreadyRunning);
         admin_account.paused = false;
         Ok(())
+    }
+    pub fn deposit_tokens(ctx: Context<DepositTokens>) -> Result<()> {
+        instructions::deposit_tokens(ctx)
+    }
+    pub fn withdraw_tokens(ctx: Context<WithdrawTokens>) -> Result<()> {
+        instructions::withdraw_tokens(ctx)
+    }
+    pub fn add_mint_authority(ctx: Context<AddMintAuthority>, new_mint_authority: Pubkey) -> Result<()> {
+        instructions::add_mint_authority(ctx, new_mint_authority)
+    }
+
+    pub fn remove_mint_authority(ctx: Context<RemoveMintAuthority>, mint_authority: Pubkey) -> Result<()> {
+        instructions::remove_mint_authority(ctx, mint_authority)
+    }
+}
+pub struct NfnodeRewards;
+
+impl NfnodeRewards {}
+
+// Implement the Id trait for NfnodeRewards
+impl anchor_lang::Id for NfnodeRewards {
+    fn id() -> Pubkey {
+        crate::ID
     }
 }
 

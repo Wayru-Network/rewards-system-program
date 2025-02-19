@@ -4,15 +4,21 @@ use anchor_spl::{
     token::{ self, Token, TokenAccount, Transfer, Mint }, //Wayru Token
     token_interface::{ Mint as Mint2022, TokenAccount as SplToken2022Account, TokenInterface },
 };
-use crate::{ errors::RewardError, state::{ RewardEntry, NfNodeEntry, AdminAccount } };
+use crate::{ errors::RewardError, state::{ RewardEntry, NfNodeEntry, AdminAccount, NfNodeType } };
 pub fn owner_claim_rewards(
     ctx: Context<OwnerClaimRewards>,
     reward_amount: u64,
     nonce: u64
 ) -> Result<()> {
+    // Validate that the reward amount is greater than zero
+    require!(reward_amount > 0, RewardError::InvalidRewardAmount);
+
     let reward_entry = &mut ctx.accounts.reward_entry;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
-
+    let amount = 5000000000;
+    //validate if type is not DON to validate the amount deposited
+    if nfnode_entry.nfnode_type !=NfNodeType::DON {
+    require!(nfnode_entry.deposit_amount == amount, RewardError::DepositRequired);}
     let admin_account = &ctx.accounts.admin_account;
     require!(!admin_account.paused, RewardError::ProgramPaused);
     require!(
@@ -48,6 +54,18 @@ pub fn owner_claim_rewards(
     if user_nft_token_account_info.owner != &ctx.accounts.token_program_2022.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    // Manually derive the associated token account PDA
+    let (derived_ata, _bump_seed) = Pubkey::find_program_address(
+        &[
+            &ctx.accounts.user.key().to_bytes(),
+            &ctx.accounts.token_program_2022.key().to_bytes(),
+            &ctx.accounts.nft_mint_address.key().to_bytes(),
+        ],
+        &ctx.accounts.associated_token_program.key()
+    );
+
+    // Validate the ownership of the user_nft_token_account
+    require!(derived_ata == *user_nft_token_account_info.key, RewardError::InvalidNftTokenAccount);
 
     let user_nft_token_account_data = user_nft_token_account_info.try_borrow_data()?;
     let user_nft_token_account = SplToken2022Account::try_deserialize(
@@ -61,6 +79,15 @@ pub fn owner_claim_rewards(
     if user_nft_token_account.mint != ctx.accounts.nft_mint_address.key() {
         return err!(RewardError::InvalidNftMint);
     }
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority.unwrap();
+    require!(
+        admin_account.mint_authorities.contains(&mint_authority),
+        RewardError::UnauthorizedMintAuthority
+    );
 
     reward_entry.last_claimed_nonce = nonce;
     reward_entry.last_claimed_timestamp = current_timestamp;

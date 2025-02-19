@@ -10,8 +10,13 @@ pub fn others_claim_rewards(
     reward_amount: u64,
     nonce: u64
 ) -> Result<()> {
+    // Validate that the reward amount is greater than zero
+    require!(reward_amount > 0, RewardError::InvalidRewardAmount);
+
     let reward_entry = &mut ctx.accounts.reward_entry;
     let nfnode_entry = &mut ctx.accounts.nfnode_entry;
+    let amount = 5000000000;
+    require!(nfnode_entry.deposit_amount == amount, RewardError::DepositRequired);
 
     let admin_account = &ctx.accounts.admin_account;
     require!(!admin_account.paused, RewardError::ProgramPaused);
@@ -46,6 +51,15 @@ pub fn others_claim_rewards(
             (current_day > last_claim_day_reward_entry &&
                 current_day > manufacturer_last_claim_day_nfnode_entry),
         RewardError::ClaimAlreadyMadeToday
+    );
+    //validate if nft has valid mint authority
+    let metadata_account_info = &ctx.accounts.nft_mint_address.to_account_info();
+    let metadata_account_data = metadata_account_info.try_borrow_data()?;
+    let mint = Mint2022::try_deserialize(&mut &metadata_account_data[..])?;
+    let mint_authority = mint.mint_authority.unwrap();
+    require!(
+        admin_account.mint_authorities.contains(&mint_authority),
+        RewardError::UnauthorizedMintAuthority
     );
 
     reward_entry.last_claimed_nonce = nonce;

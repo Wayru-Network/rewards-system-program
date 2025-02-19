@@ -20,6 +20,7 @@ export async function setupTests(
   const adminKeypair = await getKeypair("admin");
   const userKeypair = await getKeypair("user");
   const user2Keypair = await getKeypair("user2");
+  const deployerKeypair = await getKeypair("deployer");
 
   // SOL airdrop for accounts
   await Promise.all([
@@ -31,6 +32,7 @@ export async function setupTests(
 
   const mintAdress = Keypair.generate();
   const nftMintAdress = Keypair.generate();
+  const nft2MintAdress = Keypair.generate();
   // Create SPL Token
   const mint = await createMint(
     provider.connection,
@@ -48,6 +50,16 @@ export async function setupTests(
     null,
     0, // decimals
     nftMintAdress,
+    { commitment: "finalized" },
+    TOKEN_2022_PROGRAM_ID
+  );
+  const nft2Mint = await createMint(
+    provider.connection,
+    adminKeypair,
+    adminKeypair.publicKey,
+    null,
+    0, // decimals
+    nft2MintAdress,
     { commitment: "finalized" },
     TOKEN_2022_PROGRAM_ID
   );
@@ -83,6 +95,17 @@ export async function setupTests(
     TOKEN_2022_PROGRAM_ID,
     ASSOCIATED_TOKEN_PROGRAM_ID
   ).then((account) => account.address);
+  const userNFT2TokenAccount = await getOrCreateAssociatedTokenAccount(
+    provider.connection,
+    userKeypair,
+    nft2Mint,
+    userKeypair.publicKey,
+    null,
+    null,
+    { commitment: "finalized" },
+    TOKEN_2022_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  ).then((account) => account.address);
   const user2NFTTokenAccount = await getOrCreateAssociatedTokenAccount(
     provider.connection,
     user2Keypair,
@@ -111,7 +134,18 @@ export async function setupTests(
     mint,
     adminTokenAccount,
     adminKeypair,
-    1000000000, // 1000 tokens with 6 decimals
+    10000000000, // 1000 tokens with 6 decimals
+    [],
+    { commitment: "finalized" }
+  );
+  // Mint tokens for user
+  await mintTo(
+    provider.connection,
+    adminKeypair,
+    mint,
+    userTokenAccount,
+    adminKeypair,
+    5000000000, // 5000 tokens with 6 decimals
     [],
     { commitment: "finalized" }
   );
@@ -121,6 +155,17 @@ export async function setupTests(
     adminKeypair,
     nftMint,
     userNFTTokenAccount,
+    adminKeypair,
+    1, // 1 NFT
+    [],
+    { commitment: "finalized" },
+    TOKEN_2022_PROGRAM_ID
+  );
+  await mintTo(
+    provider.connection,
+    adminKeypair,
+    nft2Mint,
+    userNFT2TokenAccount,
     adminKeypair,
     1, // 1 NFT
     [],
@@ -166,5 +211,8 @@ export async function setupTests(
     tokenStoragePDA,
     adminAccountPDA,
     nfnodeEntryPDA,
+    deployerKeypair,
+    nft2Mint,
+    userNFT2TokenAccount
   };
 }
