@@ -390,3 +390,76 @@ The program defines the following custom error codes:
 
 -   [Solana](https://solana.com/)
 -   [Anchor](https://project-serum.github.io/anchor/)
+
+## Deploying the Program
+
+Follow these steps to deploy the Solana program:
+
+### 1. Clean the Anchor Project
+```bash
+anchor clean
+```
+
+### 2. Remove Old Keypair Files (if needed)
+```bash
+rm -f program-keypair.json
+```
+
+### 3. Configure Network
+```bash
+solana config set --url devnet
+```
+
+### 4. Create a New Program Keypair
+```bash
+mkdir -p target/deploy && solana-keygen new -o target/deploy/reward_system-keypair.json --force
+```
+
+### 5. Update Program ID in Code
+Replace the program ID in your code with the newly generated one:
+
+```rust
+// In lib.rs
+declare_id!("YOUR_NEW_ID_HERE"); // Replace with the new address you generated
+```
+
+```toml
+# In Anchor.toml
+[programs.devnet]
+nfnode_rewards = "YOUR_NEW_ID_HERE"
+```
+
+### 6. Clean the Project Again
+```bash
+anchor clean
+```
+
+### 7. Build the Program
+```bash
+anchor build
+```
+
+### 8. Deploy the Program
+```bash
+anchor deploy --program-name reward_system --provider.cluster devnet --program-keypair target/deploy/reward_system-keypair.json
+```
+
+### 9. Deploy IDL
+```bash
+anchor idl init \
+--provider.cluster devnet \
+YOUR_NEW_ID_HERE \
+-f target/idl/reward_system.json
+```
+
+### 10. (Optional) Close Buffers to Recover SOL
+If you want to recover SOL from deployment buffers:
+```bash
+solana program close --buffers --url https://api.devnet.solana.com --rpc-timeout 120 --skip-fee-check
+```
+This command closes all program buffers and returns the rent to your wallet. This is safe to do after deployment and doesn't affect your deployed program.
+
+### Notes
+- Make sure you have sufficient SOL in your wallet for deployment, approximately 6 SOL
+- The deployment process may take several minutes depending on the program size
+- Keep your program keypair secure as it's required for future updates
