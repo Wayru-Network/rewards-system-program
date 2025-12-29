@@ -722,6 +722,10 @@ Reward claims require NFT ownership verification:
 * Prevents unauthorized claims
 * Token account balance checks
 
+### System Audits
+
+* **Halborn**: [Read the Security Assessment](https://www.halborn.com/audits/wayru/wayru---nfnode-rewards-program---solana-program-security-assessment-ab8b12)
+
 ## Error Handling
 
 The program defines comprehensive error codes for various failure scenarios:
@@ -789,4 +793,4 @@ WAYRU
 
 ---
 
-**Note**: This project is now **open source** and available for the community to use, modify, and improve. WAYRU no longer exists and will not provide support, maintenance, or updates. The community is welcome to fork, modify, and maintain this codebase as needed.
+**Note**: This project is **open source**. Wayru, Inc and The Wayru Foundation are no longer operating entities, and will not provide any kind of support. The community is welcome to use, modify, and improve this codebase.
